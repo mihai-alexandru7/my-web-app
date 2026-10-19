@@ -6,13 +6,23 @@ export default defineNitroPlugin(async () => {
 
     try {
         const email = String(administratorEmail).trim().toLowerCase()
-        if (await userRepository.findByEmail(email)) return
+
+        const existing = await userRepository.findByEmail(email)
+        if (existing) {
+            if (existing.role !== 'administrator') {
+                console.warn(
+                    `Seed skipped: ${email} already exists with role "${existing.role}". ` +
+                    'Use a different administrator email or change the role manually.',
+                )
+            }
+            return
+        }
 
         await userRepository.createUser({
             email,
             passwordHash: await hashPassword(String(administratorPassword)),
-            firstName: '',
-            lastName: '',
+            firstName: 'Administrator',
+            lastName: 'Account',
             role: 'administrator',
         })
         console.log(`Administrator account created: ${email}`)

@@ -2,14 +2,14 @@ export default defineNuxtConfig({
   modules: ['nuxt-auth-utils'],
   runtimeConfig: {
     db: {
-      host: 'localhost',
-      port: 3306,
-      user: 'root',
+      host: '',
+      port: '3306',
+      user: '',
       password: '',
-      database: 'db',
+      database: '',
     },
     administratorEmail: '',
-    administratorPassword: '',
+    administratorPassword: ''
   },
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true }

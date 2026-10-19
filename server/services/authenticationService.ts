@@ -1,17 +1,7 @@
 import { userRepository } from '../repositories/userRepository'
-import type { UserRecord } from '../repositories/userRepository'
 import { getDb } from '../utils/db'
+import { toSessionUser } from '../utils/authentication'
 import type { LoginInput, RegisterInput } from '../schemas/authentication'
-
-export function toSessionUser(user: UserRecord) {
-    return {
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        role: user.role,
-    }
-}
 
 let dummyHash: string | undefined
 async function getDummyHash() {
