@@ -1,11 +1,28 @@
 import { and, count, desc, eq, like, or, sql } from 'drizzle-orm'
-import { getDb } from '../utils/db'
-import type { Executor } from '../utils/db'
-import { publisherProfiles, users } from '../database/schema'
-import type { Role } from '../utils/authentication'
+import { getDatabase } from '#server/utils/database'
+import type { Executor } from '#server/utils/database'
+import { publisherProfiles, users } from '#server/database/schema'
 
 export type UserRecord = typeof users.$inferSelect
-export type UserFilter = { search?: string; role?: Role; isActive?: boolean }
+export type Role = UserRecord['role']
+
+export type UserFilter = {
+    search?: string
+    role?: Role
+    isActive?: boolean
+}
+
+export type UpdateUserData = Partial<{
+    firstName: string
+    lastName: string
+    email: string
+    passwordHash: string
+}>
+
+export type UpdatePublisherProfileData = Partial<{
+    publisherName: string
+    description: string | null
+}>
 
 function escapeLike(value: string) {
     return value.replace(/[\\%_]/g, '\\$&')
@@ -13,6 +30,7 @@ function escapeLike(value: string) {
 
 function whereClause(filter: UserFilter) {
     const pattern = filter.search ? `%${escapeLike(filter.search)}%` : undefined
+
     return and(
         filter.role ? eq(users.role, filter.role) : undefined,
         filter.isActive === undefined ? undefined : eq(users.isActive, filter.isActive),
@@ -22,19 +40,35 @@ function whereClause(filter: UserFilter) {
                 like(users.firstName, pattern),
                 like(users.lastName, pattern),
                 like(sql`concat(${users.firstName}, ' ', ${users.lastName})`, pattern),
+                like(sql`concat(${users.lastName}, ' ', ${users.firstName})`, pattern),
+                like(publisherProfiles.publisherName, pattern)
             )
-            : undefined,
+            : undefined
     )
 }
 
 export const userRepository = {
-    async findByEmail(email: string, executor: Executor = getDb()): Promise<UserRecord | null> {
-        const [user] = await executor.select().from(users).where(eq(users.email, email)).limit(1)
+    async findByEmail(
+        email: string,
+        executor: Executor = getDatabase()
+    ): Promise<UserRecord | null> {
+        const [user] = await executor
+            .select()
+            .from(users)
+            .where(eq(users.email, email.toLowerCase().trim()))
+            .limit(1)
         return user ?? null
     },
 
-    async findById(id: number, executor: Executor = getDb()): Promise<UserRecord | null> {
-        const [user] = await executor.select().from(users).where(eq(users.id, id)).limit(1)
+    async findById(
+        id: number,
+        executor: Executor = getDatabase()
+    ): Promise<UserRecord | null> {
+        const [user] = await executor
+            .select()
+            .from(users)
+            .where(eq(users.id, id))
+            .limit(1)
         return user ?? null
     },
 
@@ -46,24 +80,72 @@ export const userRepository = {
             lastName: string
             role: Role
         },
-        executor: Executor = getDb(),
+        executor: Executor = getDatabase()
     ): Promise<number> {
-        const [created] = await executor.insert(users).values(data).$returningId()
+        const [created] = await executor
+            .insert(users)
+            .values({
+                ...data,
+                email: data.email.toLowerCase().trim()
+            })
+            .$returningId()
         return created.id
+    },
+
+    async update(
+        id: number,
+        data: UpdateUserData,
+        executor: Executor = getDatabase()
+    ): Promise<boolean> {
+        const [result] = await executor
+            .update(users)
+            .set(data)
+            .where(eq(users.id, id))
+        return result.affectedRows > 0
     },
 
     async createPublisherProfile(
         data: { userId: number; publisherName: string; description?: string },
-        executor: Executor = getDb(),
+        executor: Executor = getDatabase()
     ): Promise<void> {
-        await executor.insert(publisherProfiles).values({
-            userId: data.userId,
-            publisherName: data.publisherName,
-            description: data.description ?? null,
-        })
+        await executor
+            .insert(publisherProfiles)
+            .values({
+                userId: data.userId,
+                publisherName: data.publisherName,
+                description: data.description ?? null
+            })
     },
 
-    async list(filter: UserFilter, options: { limit: number; offset: number }, executor: Executor = getDb()) {
+    async updatePublisherProfile(
+        userId: number,
+        data: UpdatePublisherProfileData,
+        executor: Executor = getDatabase()
+    ): Promise<boolean> {
+        const [result] = await executor
+            .update(publisherProfiles)
+            .set(data)
+            .where(eq(publisherProfiles.userId, userId))
+        return result.affectedRows > 0
+    },
+
+    async findPublisherProfile(
+        userId: number,
+        executor: Executor = getDatabase()
+    ) {
+        const [profile] = await executor
+            .select()
+            .from(publisherProfiles)
+            .where(eq(publisherProfiles.userId, userId))
+            .limit(1)
+        return profile ?? null
+    },
+
+    async list(
+        filter: UserFilter,
+        options: { limit: number; offset: number },
+        executor: Executor = getDatabase()
+    ) {
         return executor
             .select({
                 id: users.id,
@@ -73,29 +155,36 @@ export const userRepository = {
                 role: users.role,
                 isActive: users.isActive,
                 createdAt: users.createdAt,
+                publisherName: publisherProfiles.publisherName
             })
             .from(users)
+            .leftJoin(publisherProfiles, eq(publisherProfiles.userId, users.id))
             .where(whereClause(filter))
             .orderBy(desc(users.createdAt), desc(users.id))
             .limit(options.limit)
             .offset(options.offset)
     },
 
-    async countByFilter(filter: UserFilter, executor: Executor = getDb()): Promise<number> {
-        const [row] = await executor.select({ total: count() }).from(users).where(whereClause(filter))
+    async countByFilter(
+        filter: UserFilter,
+        executor: Executor = getDatabase()
+    ): Promise<number> {
+        const [row] = await executor
+            .select({ total: count() })
+            .from(users)
+            .leftJoin(publisherProfiles, eq(publisherProfiles.userId, users.id))
+            .where(whereClause(filter))
         return row?.total ?? 0
     },
 
-    async setActive(id: number, isActive: boolean, executor: Executor = getDb()): Promise<void> {
-        await executor.update(users).set({ isActive }).where(eq(users.id, id))
-    },
-
-    async findPublisherProfile(userId: number, executor: Executor = getDb()) {
-        const [profile] = await executor
-            .select()
-            .from(publisherProfiles)
-            .where(eq(publisherProfiles.userId, userId))
-            .limit(1)
-        return profile ?? null
-    },
+    async setActive(
+        id: number,
+        isActive: boolean,
+        executor: Executor = getDatabase()
+    ): Promise<void> {
+        await executor
+            .update(users)
+            .set({ isActive })
+            .where(eq(users.id, id))
+    }
 }

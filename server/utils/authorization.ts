@@ -1,6 +1,6 @@
 import type { H3Event } from 'h3'
-import type { users } from '../database/schema'
-import { userRepository } from '../repositories/userRepository'
+import type { users } from '#server/database/schema'
+import { userRepository } from '#server/repositories/userRepository'
 
 export type UserRecord = typeof users.$inferSelect
 export type Role = UserRecord['role']

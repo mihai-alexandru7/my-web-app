@@ -21,17 +21,17 @@ export function getPool(): Pool {
     return pool
 }
 
-function createDb() {
+function createDatabase() {
     return drizzle({ client: getPool() })
 }
 
-let drizzleDb: ReturnType<typeof createDb> | undefined
+let drizzleDatabase: ReturnType<typeof createDatabase> | undefined
 
-export function getDb() {
-    return (drizzleDb ??= createDb())
+export function getDatabase() {
+    return (drizzleDatabase ??= createDatabase())
 }
 
-export type Database = ReturnType<typeof getDb>
+export type Database = ReturnType<typeof getDatabase>
 
 export type Transaction = Parameters<Parameters<Database['transaction']>[0]>[0]
 
