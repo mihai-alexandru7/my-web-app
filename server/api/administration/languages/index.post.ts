@@ -1,5 +1,5 @@
-import { languageSchema } from '../../../schemas/administrator'
-import { languageService } from '../../../services/languageService'
+import { languageSchema } from '#server/schemas/administration'
+import { languageService } from '#server/services/languageService'
 
 export default defineEventHandler(async (event) => {
     await requireRole(event, 'administrator')

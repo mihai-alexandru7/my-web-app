@@ -1,5 +1,5 @@
-import { categorySchema } from '../../../schemas/administrator'
-import { categoryService } from '../../../services/categoryService'
+import { categorySchema } from '#server/schemas/administration'
+import { categoryService } from '#server/services/categoryService'
 
 export default defineEventHandler(async (event) => {
     await requireRole(event, 'administrator')

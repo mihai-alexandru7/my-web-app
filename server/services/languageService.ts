@@ -1,11 +1,8 @@
-import { languageRepository } from '../repositories/languageRepository'
-import { isDuplicateEntry, isForeignKeyViolation } from '../utils/mysqlErrors'
+import { languageRepository } from '#server/repositories/languageRepository'
+import { isDuplicateEntry, isForeignKeyViolation } from '#server/utils/mysqlErrors'
 
-function duplicateCode(code?: string) {
-    return createError({
-        statusCode: 409,
-        message: code ? `A language with code "${code}" already exists.` : 'A language with this code already exists.',
-    })
+function duplicateCodeError(code?: string) {
+    return createError({ statusCode: 409, message: code ? `A language with code "${code}" already exists.` : 'A language with this code already exists.' })
 }
 
 export const languageService = {
@@ -18,22 +15,28 @@ export const languageService = {
             const id = await languageRepository.create(input)
             return { id, ...input }
         } catch (error) {
-            if (isDuplicateEntry(error)) throw duplicateCode(input.code)
+            if (isDuplicateEntry(error)) {
+                throw duplicateCodeError(input.code)
+            }
             throw error
         }
     },
 
     async update(id: number, input: { code?: string; name?: string }) {
-        if (!(await languageRepository.findById(id))) {
+        const existing = await languageRepository.findById(id)
+        if (!existing) {
             throw createError({ statusCode: 404, message: 'Language not found.' })
         }
+
         try {
             await languageRepository.update(id, input)
+            return { ...existing, ...input }
         } catch (error) {
-            if (isDuplicateEntry(error)) throw duplicateCode(input.code)
+            if (isDuplicateEntry(error)) {
+                throw duplicateCodeError(input.code)
+            }
             throw error
         }
-        return (await languageRepository.findById(id))!
     },
 
     async remove(id: number) {
@@ -48,5 +51,5 @@ export const languageService = {
             }
             throw error
         }
-    },
+    }
 }

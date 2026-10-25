@@ -1,5 +1,5 @@
-import { idParamSchema, languageUpdateSchema } from '../../../schemas/administrator'
-import { languageService } from '../../../services/languageService'
+import { idParamSchema, languageUpdateSchema } from '#server/schemas/administration'
+import { languageService } from '#server/services/languageService'
 
 export default defineEventHandler(async (event) => {
     await requireRole(event, 'administrator')

@@ -1,5 +1,5 @@
-import { userListQuerySchema } from '../../../schemas/administrator'
-import { userManagementService } from '../../../services/userManagementService'
+import { userListQuerySchema } from '#server/schemas/administration'
+import { userManagementService } from '#server/services/userManagementService'
 
 export default defineEventHandler(async (event) => {
     await requireRole(event, 'administrator')

@@ -1,5 +1,5 @@
-import { genreRepository } from '../repositories/genreRepository'
-import { isDuplicateEntry } from '../utils/mysqlErrors'
+import { genreRepository } from '#server/repositories/genreRepository'
+import { isDuplicateEntry, isForeignKeyViolation } from '#server/utils/mysqlErrors'
 
 export const genreService = {
     list() {
@@ -18,10 +18,34 @@ export const genreService = {
         }
     },
 
-    async remove(id: number) {
-        const deleted = await genreRepository.delete(id)
-        if (!deleted) {
+    async update(id: number, name: string) {
+        const existing = await genreRepository.findById(id)
+        if (!existing) {
             throw createError({ statusCode: 404, message: 'Genre not found.' })
         }
+
+        try {
+            await genreRepository.update(id, name)
+            return { id, name }
+        } catch (error) {
+            if (isDuplicateEntry(error)) {
+                throw createError({ statusCode: 409, message: `Genre "${name}" already exists.` })
+            }
+            throw error
+        }
     },
+
+    async remove(id: number) {
+        try {
+            const deleted = await genreRepository.delete(id)
+            if (!deleted) {
+                throw createError({ statusCode: 404, message: 'Genre not found.' })
+            }
+        } catch (error) {
+            if (isForeignKeyViolation(error)) {
+                throw createError({ statusCode: 409, message: 'This genre is used by existing books and cannot be deleted.' })
+            }
+            throw error
+        }
+    }
 }

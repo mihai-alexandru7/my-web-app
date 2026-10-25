@@ -1,5 +1,5 @@
-import { userRepository } from '../repositories/userRepository'
-import type { UserFilter, UserRecord } from '../repositories/userRepository'
+import { userRepository } from '#server/repositories/userRepository'
+import type { UserFilter, UserRecord } from '#server/repositories/userRepository'
 
 function toAdminUser(user: UserRecord) {
     return {
@@ -10,7 +10,7 @@ function toAdminUser(user: UserRecord) {
         role: user.role,
         isActive: user.isActive,
         createdAt: user.createdAt,
-        updatedAt: user.updatedAt,
+        updatedAt: user.updatedAt
     }
 }
 
@@ -18,7 +18,7 @@ export const userManagementService = {
     async list(filter: UserFilter, page: number, pageSize: number) {
         const [items, total] = await Promise.all([
             userRepository.list(filter, { limit: pageSize, offset: (page - 1) * pageSize }),
-            userRepository.countByFilter(filter),
+            userRepository.countByFilter(filter)
         ])
         return { items, total, page, pageSize }
     },
@@ -28,9 +28,7 @@ export const userManagementService = {
         if (!user) {
             throw createError({ statusCode: 404, message: 'User not found.' })
         }
-        const publisherProfile = user.role === 'publisher'
-            ? await userRepository.findPublisherProfile(id)
-            : null
+        const publisherProfile = user.role === 'publisher' ? await userRepository.findPublisherProfile(id) : null
         return { ...toAdminUser(user), publisherProfile }
     },
 
@@ -46,5 +44,5 @@ export const userManagementService = {
             await userRepository.setActive(id, isActive)
         }
         return toAdminUser({ ...user, isActive })
-    },
+    }
 }

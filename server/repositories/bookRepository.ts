@@ -1,6 +1,6 @@
 import { and, asc, count, desc, eq } from 'drizzle-orm'
-import { getDb } from '../utils/db'
-import type { Executor } from '../utils/db'
+import { getDatabase } from '#server/utils/database'
+import type { Executor } from '#server/utils/database'
 import {
     authors,
     bookAuthors,
@@ -11,8 +11,8 @@ import {
     categories,
     genres,
     languages,
-    publisherProfiles,
-} from '../database/schema'
+    publisherProfiles
+} from '#server/database/schema'
 
 export type BookStatus = typeof books.$inferSelect['status']
 
@@ -20,7 +20,7 @@ export const bookRepository = {
     async listByStatus(
         status: BookStatus,
         options: { limit: number; offset: number },
-        executor: Executor = getDb(),
+        executor: Executor = getDatabase()
     ) {
         return executor
             .select({
@@ -30,7 +30,7 @@ export const bookRepository = {
                 status: books.status,
                 createdAt: books.createdAt,
                 publisherId: books.publisherId,
-                publisherName: publisherProfiles.publisherName,
+                publisherName: publisherProfiles.publisherName
             })
             .from(books)
             .innerJoin(publisherProfiles, eq(publisherProfiles.userId, books.publisherId))
@@ -40,23 +40,39 @@ export const bookRepository = {
             .offset(options.offset)
     },
 
-    async countByStatus(status: BookStatus, executor: Executor = getDb()): Promise<number> {
-        const [row] = await executor.select({ total: count() }).from(books).where(eq(books.status, status))
+    async countByStatus(
+        status: BookStatus,
+        executor: Executor = getDatabase()
+    ): Promise<number> {
+        const [row] = await executor
+            .select({ total: count() })
+            .from(books)
+            .where(eq(books.status, status))
         return row?.total ?? 0
     },
 
-    async findStatus(id: number, executor: Executor = getDb()): Promise<BookStatus | null> {
-        const [row] = await executor.select({ status: books.status }).from(books).where(eq(books.id, id)).limit(1)
+    async findStatus(
+        id: number,
+        executor: Executor = getDatabase()
+    ): Promise<BookStatus | null> {
+        const [row] = await executor
+            .select({ status: books.status })
+            .from(books)
+            .where(eq(books.id, id))
+            .limit(1)
         return row?.status ?? null
     },
 
-    async findDetailById(id: number, executor: Executor = getDb()) {
+    async findDetailById(
+        id: number,
+        executor: Executor = getDatabase()
+    ) {
         const [row] = await executor
             .select({
                 book: books,
                 publisherName: publisherProfiles.publisherName,
                 languageCode: languages.code,
-                languageName: languages.name,
+                languageName: languages.name
             })
             .from(books)
             .innerJoin(publisherProfiles, eq(publisherProfiles.userId, books.publisherId))
@@ -80,7 +96,7 @@ export const bookRepository = {
                 .select({ id: categories.id, name: categories.name })
                 .from(bookCategories)
                 .innerJoin(categories, eq(categories.id, bookCategories.categoryId))
-                .where(eq(bookCategories.bookId, id)),
+                .where(eq(bookCategories.bookId, id))
         ])
 
         const { filePath: _filePath, ...book } = row.book
@@ -91,14 +107,18 @@ export const bookRepository = {
             language: { code: row.languageCode, name: row.languageName },
             authors: bookAuthorRows,
             genres: bookGenreRows,
-            categories: bookCategoryRows,
+            categories: bookCategoryRows
         }
     },
 
     async reviewIfPending(
         id: number,
-        data: { status: 'approved' | 'rejected'; reviewerId: number; rejectionReason?: string },
-        executor: Executor = getDb(),
+        data: {
+            status: 'approved' | 'rejected'
+            reviewerId: number
+            rejectionReason?: string
+        },
+        executor: Executor = getDatabase()
     ): Promise<boolean> {
         const [result] = await executor
             .update(books)
@@ -106,7 +126,7 @@ export const bookRepository = {
                 status: data.status,
                 reviewedBy: data.reviewerId,
                 reviewedAt: new Date(),
-                rejectionReason: data.rejectionReason ?? null,
+                rejectionReason: data.rejectionReason ?? null
             })
             .where(and(eq(books.id, id), eq(books.status, 'pending')))
         return result.affectedRows > 0
@@ -115,20 +135,25 @@ export const bookRepository = {
     async withdrawIfApproved(
         id: number,
         data: { reviewerId: number },
-        executor: Executor = getDb(),
+        executor: Executor = getDatabase()
     ): Promise<boolean> {
         const [result] = await executor
             .update(books)
             .set({
                 status: 'withdrawn',
                 reviewedBy: data.reviewerId,
-                reviewedAt: new Date(),
+                reviewedAt: new Date()
             })
             .where(and(eq(books.id, id), eq(books.status, 'approved')))
         return result.affectedRows > 0
     },
 
-    async removeFromCarts(bookId: number, executor: Executor = getDb()): Promise<void> {
-        await executor.delete(cartItems).where(eq(cartItems.bookId, bookId))
-    },
+    async removeFromCarts(
+        bookId: number,
+        executor: Executor = getDatabase()
+    ): Promise<void> {
+        await executor
+            .delete(cartItems)
+            .where(eq(cartItems.bookId, bookId))
+    }
 }

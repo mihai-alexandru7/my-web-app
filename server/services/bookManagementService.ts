@@ -1,6 +1,6 @@
-import { bookRepository } from '../repositories/bookRepository'
-import type { BookStatus } from '../repositories/bookRepository'
-import { getDb } from '../utils/db'
+import { bookRepository } from '#server/repositories/bookRepository'
+import type { BookStatus } from '#server/repositories/bookRepository'
+import { getDatabase } from '#server/utils/database'
 
 async function failTransition(id: number, rule: string): Promise<never> {
     const current = await bookRepository.findStatus(id)
@@ -10,20 +10,19 @@ async function failTransition(id: number, rule: string): Promise<never> {
     throw createError({ statusCode: 409, message: `${rule} (current status: ${current}).` })
 }
 
-async function review(
-    id: number,
-    data: { status: 'approved' | 'rejected'; reviewerId: number; rejectionReason?: string },
-) {
+async function review(id: number, data: { status: 'approved' | 'rejected'; reviewerId: number; rejectionReason?: string }) {
     const updated = await bookRepository.reviewIfPending(id, data)
-    if (updated) return { id, status: data.status }
+    if (updated) {
+        return { id, status: data.status }
+    }
     return failTransition(id, 'Only pending books can be reviewed')
 }
 
-export const bookModerationService = {
+export const bookManagementService = {
     async list(status: BookStatus, page: number, pageSize: number) {
         const [items, total] = await Promise.all([
             bookRepository.listByStatus(status, { limit: pageSize, offset: (page - 1) * pageSize }),
-            bookRepository.countByStatus(status),
+            bookRepository.countByStatus(status)
         ])
         return { items, total, page, pageSize }
     },
@@ -45,12 +44,14 @@ export const bookModerationService = {
     },
 
     async withdraw(id: number, reviewerId: number) {
-        const withdrawn = await getDb().transaction(async (tx) => {
-            const updated = await bookRepository.withdrawIfApproved(id, { reviewerId }, tx)
-            if (updated) await bookRepository.removeFromCarts(id, tx)
+        const withdrawn = await getDatabase().transaction(async (transaction) => {
+            const updated = await bookRepository.withdrawIfApproved(id, { reviewerId }, transaction)
+            if (updated) await bookRepository.removeFromCarts(id, transaction)
             return updated
         })
-        if (withdrawn) return { id, status: 'withdrawn' as const }
+        if (withdrawn) {
+            return { id, status: 'withdrawn' as const }
+        }
         return failTransition(id, 'Only approved books can be withdrawn')
-    },
+    }
 }
