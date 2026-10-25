@@ -248,14 +248,6 @@ async function handleDeleteAccount() {
 
           <div class="actions-stack">
             <AccountActionTile
-                v-if="currentUser?.role !== 'publisher'"
-                title="Edit Name"
-                description="Update your first and last name"
-                @click="openModal('profile')"
-            />
-
-            <AccountActionTile
-                v-else
                 title="Change your personal details"
                 description=""
                 @click="openModal('profile')"
