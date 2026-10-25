@@ -1,4 +1,4 @@
-import { userRepository } from '../repositories/userRepository'
+import { userRepository } from '#server/repositories/userRepository'
 
 export default defineNitroPlugin(async () => {
     const { administratorEmail, administratorPassword } = useRuntimeConfig()
@@ -12,7 +12,7 @@ export default defineNitroPlugin(async () => {
             if (existing.role !== 'administrator') {
                 console.warn(
                     `Seed skipped: ${email} already exists with role "${existing.role}". ` +
-                    'Use a different administrator email or change the role manually.',
+                    'Use a different administrator email or change the role manually.'
                 )
             }
             return
@@ -23,7 +23,7 @@ export default defineNitroPlugin(async () => {
             passwordHash: await hashPassword(String(administratorPassword)),
             firstName: 'Administrator',
             lastName: 'Account',
-            role: 'administrator',
+            role: 'administrator'
         })
         console.log(`Administrator account created: ${email}`)
     } catch (error) {

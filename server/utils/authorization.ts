@@ -5,13 +5,14 @@ import { userRepository } from '#server/repositories/userRepository'
 export type UserRecord = typeof users.$inferSelect
 export type Role = UserRecord['role']
 
-export function toSessionUser(user: UserRecord) {
+export function toSessionUser(user: UserRecord, publisherName?: string | null) {
     return {
         id: user.id,
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
         role: user.role,
+        publisherName: publisherName ?? null
     }
 }
 
@@ -26,5 +27,12 @@ export async function requireRole(event: H3Event, ...roles: Role[]) {
     if (!roles.includes(user.role)) {
         throw createError({ statusCode: 403, message: 'You do not have permission to perform this action.' })
     }
-    return toSessionUser(user)
+
+    let publisherName: string | null = null
+    if (user.role === 'publisher') {
+        const profile = await userRepository.findPublisherProfile(user.id)
+        publisherName = profile?.publisherName ?? null
+    }
+
+    return toSessionUser(user, publisherName)
 }

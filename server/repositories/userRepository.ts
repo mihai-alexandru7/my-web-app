@@ -76,8 +76,8 @@ export const userRepository = {
         data: {
             email: string
             passwordHash: string
-            firstName: string
-            lastName: string
+            firstName?: string | null
+            lastName?: string | null
             role: Role
         },
         executor: Executor = getDatabase()
@@ -85,8 +85,11 @@ export const userRepository = {
         const [created] = await executor
             .insert(users)
             .values({
-                ...data,
-                email: data.email.toLowerCase().trim()
+                email: data.email.toLowerCase().trim(),
+                passwordHash: data.passwordHash,
+                firstName: data.firstName ?? null,
+                lastName: data.lastName ?? null,
+                role: data.role
             })
             .$returningId()
         return created.id
@@ -186,5 +189,15 @@ export const userRepository = {
             .update(users)
             .set({ isActive })
             .where(eq(users.id, id))
+    },
+
+    async delete(
+        id: number,
+        executor: Executor = getDatabase()
+    ): Promise<boolean> {
+        const [result] = await executor
+            .delete(users)
+            .where(eq(users.id, id))
+        return result.affectedRows > 0
     }
 }

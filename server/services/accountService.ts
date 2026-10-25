@@ -42,8 +42,8 @@ export const accountService = {
                     {
                         email: input.email,
                         passwordHash,
-                        firstName: input.firstName,
-                        lastName: input.lastName,
+                        firstName: input.role === 'reader' ? input.firstName : null,
+                        lastName: input.role === 'reader' ? input.lastName : null,
                         role: input.role
                     },
                     transaction
@@ -63,7 +63,8 @@ export const accountService = {
             })
 
             const created = await userRepository.findById(userId)
-            return toSessionUser(created!)
+            const publisherName = input.role === 'publisher' ? input.publisherName : null
+            return toSessionUser(created!, publisherName)
         } catch (error) {
             rethrowDuplicate(error)
         }
@@ -89,7 +90,14 @@ export const accountService = {
                 message: 'This account has been deactivated.'
             })
         }
-        return toSessionUser(user)
+
+        let publisherName: string | null = null
+        if (user.role === 'publisher') {
+            const profile = await userRepository.findPublisherProfile(user.id)
+            publisherName = profile?.publisherName ?? null
+        }
+
+        return toSessionUser(user, publisherName)
     },
 
     async getCurrentUser(userId: number) {
@@ -101,7 +109,7 @@ export const accountService = {
             : null
 
         return {
-            ...toSessionUser(user),
+            ...toSessionUser(user, publisherProfile?.publisherName),
             publisherProfile
         }
     },
@@ -198,6 +206,32 @@ export const accountService = {
 
         const newPasswordHash = await hashPassword(input.newPassword)
         await userRepository.update(userId, { passwordHash: newPasswordHash })
+
+        return { ok: true }
+    },
+
+    async deleteAccount(userId: number, passwordInput: string) {
+        const user = await userRepository.findById(userId)
+        if (!user) {
+            throw createError({
+                statusCode: 404,
+                message: 'User not found.'
+            })
+        }
+
+        const valid = await verifyPassword(user.passwordHash, passwordInput)
+        if (!valid) {
+            throw createError({
+                statusCode: 400,
+                message: 'Incorrect password. Account deletion aborted.'
+            })
+        }
+
+        try {
+            await userRepository.delete(userId)
+        } catch (error) {
+            await userRepository.setActive(userId, false)
+        }
 
         return { ok: true }
     }

@@ -16,15 +16,15 @@ const name = z.string().trim()
 const base = z.object({
     email,
     password,
-    firstName: name,
-    lastName: name,
 })
 
 export const signUpSchema = z.discriminatedUnion(
     'role',
     [
         base.extend({
-            role: z.literal('reader')
+            role: z.literal('reader'),
+            firstName: name,
+            lastName: name,
         }),
         base.extend({
             role: z.literal('publisher'),
