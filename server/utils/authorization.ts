@@ -12,7 +12,8 @@ export function toSessionUser(user: UserRecord, publisherName?: string | null) {
         firstName: user.firstName,
         lastName: user.lastName,
         role: user.role,
-        publisherName: publisherName ?? null
+        publisherName: publisherName ?? null,
+        createdAt: user.createdAt
     }
 }
 
