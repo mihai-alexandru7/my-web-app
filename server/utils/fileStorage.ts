@@ -93,8 +93,12 @@ export async function sendStoredFile(event: H3Event, relativePath: string, optio
         const fileStat = await stat(absolutePath)
         const mime = getMimeType(relativePath)
 
+        const etag = `W/"${fileStat.size.toString(16)}-${Math.floor(fileStat.mtimeMs).toString(16)}"`
+
         setHeader(event, 'Content-Type', mime)
-        setHeader(event, 'Content-Length', fileStat.size)
+        setHeader(event, 'X-Content-Type-Options', 'nosniff')
+        setHeader(event, 'ETag', etag)
+        setHeader(event, 'Last-Modified', fileStat.mtime.toUTCString())
         if (options?.cacheControl) {
             setHeader(event, 'Cache-Control', options.cacheControl)
         }
@@ -102,6 +106,13 @@ export async function sendStoredFile(event: H3Event, relativePath: string, optio
             setHeader(event, 'Content-Disposition', options.disposition)
         }
 
+        const ifNoneMatch = getRequestHeader(event, 'if-none-match')
+        if (ifNoneMatch && ifNoneMatch.split(',').map((tag) => tag.trim()).some((tag) => tag === etag || tag === '*')) {
+            setResponseStatus(event, 304)
+            return null
+        }
+
+        setHeader(event, 'Content-Length', fileStat.size)
         return sendStream(event, createReadStream(absolutePath))
     } catch {
         throw createError({ statusCode: 404, message: 'File not found on disk.' })

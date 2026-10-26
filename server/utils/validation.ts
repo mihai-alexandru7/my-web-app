@@ -1,3 +1,4 @@
+import type { H3Event } from 'h3'
 import type { ZodType } from 'zod'
 
 export function validateInput<T>(schema: ZodType<T>, data: unknown): T {
@@ -11,4 +12,16 @@ export function validateInput<T>(schema: ZodType<T>, data: unknown): T {
         })
     }
     return result.data
+}
+
+export async function validatedBody<T>(event: H3Event, schema: ZodType<T>): Promise<T> {
+    return validateInput(schema, await readBody(event))
+}
+
+export function validatedQuery<T>(event: H3Event, schema: ZodType<T>): T {
+    return validateInput(schema, getQuery(event))
+}
+
+export function validatedParams<T>(event: H3Event, schema: ZodType<T>): T {
+    return validateInput(schema, getRouterParams(event))
 }

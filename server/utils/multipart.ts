@@ -13,6 +13,9 @@ const fileFields: Record<string, UploadKind> = {
 
 export async function readBookUpload(event: H3Event) {
     const contentLength = Number(getRequestHeader(event, 'content-length') ?? 0)
+    if (!contentLength) {
+        throw createError({ statusCode: 411, message: 'A Content-Length header is required for uploads.' })
+    }
     if (contentLength > maxUploadRequestBytes) {
         throw createError({ statusCode: 413, message: 'The upload is too large.' })
     }

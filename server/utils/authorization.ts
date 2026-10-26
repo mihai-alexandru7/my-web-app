@@ -17,6 +17,13 @@ export function toSessionUser(user: UserRecord, publisherName?: string | null) {
     }
 }
 
+export const ALL_ROLES: Role[] = ['reader', 'publisher', 'administrator']
+
+/** Any signed-in user whose account is still active (re-checked against the database). */
+export function requireActiveUser(event: H3Event) {
+    return requireRole(event, ...ALL_ROLES)
+}
+
 export async function requireRole(event: H3Event, ...roles: Role[]) {
     const { user: sessionUser } = await requireUserSession(event)
 

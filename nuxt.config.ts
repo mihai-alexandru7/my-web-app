@@ -1,5 +1,8 @@
 export default defineNuxtConfig({
-    css: ['@fontsource/sorts-mill-goudy/400.css'],
+    css: [
+        '@fontsource/sorts-mill-goudy/400.css',
+        '@/assets/css/custom_properties.css'
+    ],
     modules: ['nuxt-auth-utils'],
     runtimeConfig: {
         db: {

@@ -6,8 +6,8 @@ const deleteAccountSchema = z.object({
 })
 
 export default defineEventHandler(async (event) => {
-    const { user } = await requireUserSession(event)
-    const body = await readValidatedBody(event, deleteAccountSchema.parse)
+    const user = await requireActiveUser(event)
+    const body = await validatedBody(event, deleteAccountSchema)
 
     await accountService.deleteAccount(user.id, body.password)
     await clearUserSession(event)

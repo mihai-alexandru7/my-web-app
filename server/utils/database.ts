@@ -14,8 +14,14 @@ export function getPool(): Pool {
             password: db.password,
             database: db.database,
             charset: 'utf8mb4',
+            timezone: 'Z',
             waitForConnections: true,
             connectionLimit: 10,
+        })
+        // Drizzle reads and writes DATETIME values as UTC, so make CURRENT_TIMESTAMP defaults
+        // (created_at, added_at, ...) UTC as well, whatever timezone the MySQL server runs in.
+        pool.on('connection', (connection) => {
+            void connection.query("SET time_zone = '+00:00'")
         })
     }
     return pool
