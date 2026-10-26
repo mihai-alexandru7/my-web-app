@@ -1,7 +1,5 @@
 <script setup lang="ts">
 
-import '@/assets/css/administration.css'
-
 definePageMeta({ middleware: 'administration' })
 useHead({ title: 'Administration' })
 
@@ -63,11 +61,11 @@ function toggleSection(id: string) {
 watch(
     () => route.query.section,
     (newSection) => {
-      if (typeof newSection === 'string' && sections.some(s => s.id === newSection)) {
+      if (typeof newSection === 'string' && sections.some(section => section.id === newSection)) {
         expandedSections.value.add(newSection)
         nextTick(() => {
-          const el = document.getElementById(`section-${newSection}`)
-          el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          const targetElement = document.getElementById(`section-${newSection}`)
+          targetElement?.scrollIntoView({ behavior: 'smooth', block: 'start' })
         })
       }
     },
@@ -79,29 +77,27 @@ watch(
 <template>
   <div class="administration-page-wrapper">
     <div class="administration-page-container">
-      <header class="administration-page-container-header">
-        <div class="administration-page-container-header-title">
-          <h1>Administration</h1>
-        </div>
+      <header class="administration-page-header">
+        <h1 class="administration-heading-title">Administration</h1>
       </header>
 
       <div class="administration-sections-stack">
-        <AdministrationPanel
-            v-for="sec in sections"
-            :id="sec.id"
-            :key="sec.id"
-            :title="sec.title"
-            :description="sec.description"
-            :expanded="isExpanded(sec.id)"
-            @toggle="toggleSection(sec.id)"
+        <AccordionPanel
+            v-for="section in sections"
+            :id="section.id"
+            :key="section.id"
+            :title="section.title"
+            :description="section.description"
+            :expanded="isExpanded(section.id)"
+            @toggle="toggleSection(section.id)"
         >
-          <AdministrationBooks v-if="sec.id === 'books'" />
-          <AdministrationGenres v-else-if="sec.id === 'genres'" />
-          <AdministrationCategories v-else-if="sec.id === 'categories'" />
-          <AdministrationLanguages v-else-if="sec.id === 'languages'" />
-          <AdministrationUsers v-else-if="sec.id === 'users'" />
-          <AdministrationReviews v-else-if="sec.id === 'reviews'" />
-        </AdministrationPanel>
+          <AdministrationBooks v-if="section.id === 'books'" />
+          <AdministrationGenres v-else-if="section.id === 'genres'" />
+          <AdministrationCategories v-else-if="section.id === 'categories'" />
+          <AdministrationLanguages v-else-if="section.id === 'languages'" />
+          <AdministrationUsers v-else-if="section.id === 'users'" />
+          <AdministrationReviews v-else-if="section.id === 'reviews'" />
+        </AccordionPanel>
       </div>
     </div>
   </div>
@@ -109,22 +105,35 @@ watch(
 
 <style scoped>
 
-.administration-page-container-header {
+.administration-page-wrapper {
+  min-height: 100vh;
+  background: var(--color-background-page);
+  color: var(--color-text-primary);
+  font-family: var(--font-family-serif);
+  padding: 100px 24px 60px;
+  box-sizing: border-box;
+}
+
+.administration-page-container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.administration-page-header {
   display: flex;
-  flex-wrap: wrap;
   justify-content: space-between;
   align-items: flex-end;
   gap: 16px;
   margin-bottom: 28px;
   padding-bottom: 18px;
-  border-bottom: 1px solid var(--administration-border);
+  border-bottom: 1px solid var(--color-border-main);
 }
 
-.administration-page-container-header-title h1 {
-  margin: 0 0 6px 0;
+.administration-heading-title {
+  margin: 0;
   font-size: 2.1rem;
   font-weight: 400;
-  color: var(--administration-primary);
+  color: var(--color-action-primary);
 }
 
 .administration-sections-stack {

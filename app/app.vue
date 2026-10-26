@@ -1,6 +1,6 @@
 <template>
-  <div>
+  <NuxtLayout>
     <!-- Markup shared across all pages -->
     <NuxtPage />
-  </div>
+  </NuxtLayout>
 </template>

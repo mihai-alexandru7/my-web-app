@@ -1,21 +1,19 @@
 <script setup lang="ts">
+
 const route = useRoute()
 const { user, clear } = useUserSession()
 
 const roleLinks: Record<string, { label: string; to: string }[]> = {
   reader: [
-    { label: 'My Library', to: '/my-library' },
-    { label: 'My Wishlist', to: '/my-wishlist' },
-    { label: 'My Cart', to: '/my-cart' }
+    { label: 'My Library', to: '/reader/library' },
+    { label: 'My Wishlist', to: '/reader/wishlist' },
+    { label: 'My Cart', to: '/reader/cart' }
   ],
   publisher: [
-    { label: 'My Books', to: '/publisher/books' },
-    { label: 'Sales Report', to: '/publisher/sales-report' }
+    { label: 'My Books', to: '/publisher#books' },
+    { label: 'My Sales', to: '/publisher#sales-report' }
   ],
   administrator: [
-    { label: 'Administration', to: '/administration' }
-  ],
-  administration: [
     { label: 'Administration', to: '/administration' }
   ]
 }
@@ -28,7 +26,7 @@ const menuLinks = computed(() => [
 
 const accountLinks = computed(() => {
   if (user.value) {
-    return [{ label: 'My Account', to: '/my-account' }]
+    return [{ label: 'My Account', to: '/account' }]
   }
 
   const currentPath = route.fullPath.startsWith('/account') ? '/' : route.fullPath
@@ -70,8 +68,8 @@ const accountContainer = ref<HTMLElement | null>(null)
 
 const handlePointerDown = (event: PointerEvent) => {
   const target = event.target as Node
-  const clickedInside = [menuContainer.value, accountContainer.value].some((el) =>
-      el?.contains(target)
+  const clickedInside = [menuContainer.value, accountContainer.value].some((element) =>
+      element?.contains(target)
   )
   if (!clickedInside) closeAll()
 }
@@ -105,16 +103,17 @@ const handleSignOut = async () => {
     signOutError.value = 'Could not sign out. Please try again.'
   }
 }
+
 </script>
 
 <template>
-  <div class="layout-container">
-    <div ref="menuContainer" class="menu-container">
-      <NavigationMenuButton :open="isMenuExpanded" @click="toggleMenu" />
+  <div class="application-layout-container">
+    <div ref="menuContainer" class="navigation-menu-trigger-container">
+      <NavigationTriggerButton variant="menu" :open="isMenuExpanded" @click="toggleMenu" />
 
-      <NavigationDrawer id="main-menu" side="left" :open="isMenuExpanded">
+      <NavigationPanel id="main-menu" side="left" :open="isMenuExpanded">
         <nav aria-label="Main">
-          <ul class="navigation-list">
+          <ul class="navigation-link-list">
             <li v-for="link in menuLinks" :key="link.to">
               <NavigationItem :to="link.to">
                 {{ link.label }}
@@ -122,14 +121,14 @@ const handleSignOut = async () => {
             </li>
           </ul>
         </nav>
-      </NavigationDrawer>
+      </NavigationPanel>
     </div>
 
-    <div ref="accountContainer" class="account-container">
-      <NavigationAccountButton :open="isAccountExpanded" @click="toggleAccount" />
+    <div ref="accountContainer" class="navigation-account-trigger-container">
+      <NavigationTriggerButton variant="account" :open="isAccountExpanded" @click="toggleAccount" />
 
-      <NavigationDrawer id="account-menu" side="right" :open="isAccountExpanded">
-        <ul class="navigation-list">
+      <NavigationPanel id="account-menu" side="right" :open="isAccountExpanded">
+        <ul class="navigation-link-list">
           <li v-if="user">
             <NavigationUserInfo :display-name="displayName" :email="user.email" />
           </li>
@@ -143,9 +142,9 @@ const handleSignOut = async () => {
               Sign Out
             </NavigationItem>
           </li>
-          <li v-if="signOutError" class="sign-out-error" role="alert">{{ signOutError }}</li>
+          <li v-if="signOutError" class="sign-out-error-notice" role="alert">{{ signOutError }}</li>
         </ul>
-      </NavigationDrawer>
+      </NavigationPanel>
     </div>
 
     <main>
@@ -155,26 +154,27 @@ const handleSignOut = async () => {
 </template>
 
 <style scoped>
-.layout-container {
+
+.application-layout-container {
   min-height: 100vh;
-  font-family: 'Sorts Mill Goudy', Georgia, serif;
+  font-family: var(--font-family-serif);
 }
 
-.menu-container {
+.navigation-menu-trigger-container {
   position: fixed;
   top: 24px;
   left: 24px;
   z-index: 1000;
 }
 
-.account-container {
+.navigation-account-trigger-container {
   position: fixed;
   top: 24px;
   right: 24px;
   z-index: 1000;
 }
 
-.navigation-list {
+.navigation-link-list {
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -183,11 +183,12 @@ const handleSignOut = async () => {
   list-style: none;
 }
 
-.sign-out-error {
+.sign-out-error-notice {
   padding: 4px 6px;
-  color: #9c1c15;
+  color: var(--color-status-danger);
   font-size: 0.88rem;
   font-weight: 600;
   text-align: center;
 }
+
 </style>
