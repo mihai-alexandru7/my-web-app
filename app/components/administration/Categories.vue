@@ -1,5 +1,8 @@
 <script setup lang="ts">
 
+import { getErrorMessage } from '@/utils/errors'
+import type { TableColumn } from '@/components/DataTable.vue'
+
 interface Category {
   id: number
   name: string
@@ -7,6 +10,11 @@ interface Category {
 
 const { data, refresh, pending } = useFetch<{ categories: Category[] }>('/api/categories')
 const categories = computed(() => data.value?.categories ?? [])
+
+const columns: TableColumn[] = [
+  { key: 'name', label: 'Name' },
+  { key: 'actions', label: 'Actions', align: 'right', width: '180px' }
+]
 
 const name = ref('')
 const error = ref('')
@@ -22,8 +30,8 @@ async function addCategory() {
     await $fetch('/api/administration/categories', { method: 'POST', body: { name: name.value.trim() } })
     name.value = ''
     await refresh()
-  } catch (e) {
-    error.value = getErrorMessage(e)
+  } catch (caughtError) {
+    error.value = getErrorMessage(caughtError)
   } finally {
     busy.value = false
   }
@@ -50,8 +58,8 @@ async function saveEdit(id: number) {
     })
     editingId.value = null
     await refresh()
-  } catch (e) {
-    error.value = getErrorMessage(e)
+  } catch (caughtError) {
+    error.value = getErrorMessage(caughtError)
   } finally {
     busy.value = false
   }
@@ -65,8 +73,8 @@ async function removeCategory(category: Category) {
   try {
     await $fetch(`/api/administration/categories/${category.id}`, { method: 'DELETE' })
     await refresh()
-  } catch (e) {
-    error.value = getErrorMessage(e)
+  } catch (caughtError) {
+    error.value = getErrorMessage(caughtError)
   } finally {
     busy.value = false
   }
@@ -76,84 +84,106 @@ async function removeCategory(category: Category) {
 
 <template>
   <div>
-    <form class="administration-card administration-form" @submit.prevent="addCategory">
+    <form class="action-form-bar" @submit.prevent="addCategory">
       <input
           v-model="name"
-          class="administration-input"
+          class="name-input-control"
           type="text"
           maxlength="100"
           placeholder="New category name"
           aria-label="New category name"
           required
       />
-      <button class="administration-button administration-button-primary" type="submit" :disabled="busy || !name.trim()">
+      <Button type="submit" :disabled="busy || !name.trim()">
         Add category
-      </button>
+      </Button>
     </form>
 
-    <p v-if="error" class="administration-notice-error" role="alert">{{ error }}</p>
+    <p v-if="error" class="notification-error-message" role="alert">{{ error }}</p>
 
-    <div class="administration-table-wrapper">
-      <table class="administration-table">
-        <thead>
-        <tr>
-          <th>Name</th>
-          <th style="width: 180px; text-align: right;">Actions</th>
-        </tr>
-        </thead>
-        <tbody>
-        <tr v-for="category in categories" :key="category.id">
-          <template v-if="editingId === category.id">
-            <td>
-              <input
-                  v-model="editingName"
-                  class="administration-input"
-                  style="width: 100%; max-width: 320px;"
-                  maxlength="100"
-                  required
-                  @keydown.enter="saveEdit(category.id)"
-                  @keydown.esc="cancelEdit"
-              />
-            </td>
-            <td class="administration-actions" style="justify-content: flex-end;">
-              <button
-                  class="administration-button administration-button-small administration-button-primary"
-                  type="button"
-                  :disabled="busy || !editingName.trim()"
-                  @click="saveEdit(category.id)"
-              >
-                Save
-              </button>
-              <button class="administration-button administration-button-small" type="button" @click="cancelEdit">
-                Cancel
-              </button>
-            </td>
+    <DataTable
+        :columns="columns"
+        :rows="categories"
+        row-key="id"
+        :pending="pending"
+        loading-message="Loading categories..."
+        empty-message="No categories found."
+    >
+      <template #cell-name="{ row }">
+        <input
+            v-if="editingId === row.id"
+            v-model="editingName"
+            class="name-input-control inline-edit-input"
+            maxlength="100"
+            required
+            @keydown.enter="saveEdit(row.id)"
+            @keydown.esc="cancelEdit"
+        />
+        <strong v-else>{{ row.name }}</strong>
+      </template>
+
+      <template #cell-actions="{ row }">
+        <div class="table-actions-container">
+          <template v-if="editingId === row.id">
+            <Button size="small" :disabled="busy || !editingName.trim()" @click="saveEdit(row.id)">
+              Save
+            </Button>
+            <Button size="small" variant="outline" @click="cancelEdit">Cancel</Button>
           </template>
           <template v-else>
-            <td><strong>{{ category.name }}</strong></td>
-            <td class="administration-actions" style="justify-content: flex-end;">
-              <button
-                  class="administration-button administration-button-small"
-                  type="button"
-                  :disabled="busy"
-                  @click="startEdit(category)"
-              >
-                Edit
-              </button>
-              <button
-                  class="administration-button administration-button-small administration-button-danger"
-                  type="button"
-                  :disabled="busy"
-                  @click="removeCategory(category)"
-              >
-                Delete
-              </button>
-            </td>
+            <Button size="small" variant="outline" :disabled="busy" @click="startEdit(row)">Edit</Button>
+            <Button size="small" variant="danger" :disabled="busy" @click="removeCategory(row)">Delete</Button>
           </template>
-        </tr>
-        </tbody>
-      </table>
-      <p v-if="!categories.length" class="administration-empty">{{ pending ? 'Loading…' : 'No categories found.' }}</p>
-    </div>
+        </div>
+      </template>
+    </DataTable>
   </div>
 </template>
+
+<style scoped>
+
+.action-form-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  background: var(--color-background-surface);
+  border: 1.5px solid var(--color-border-main);
+  border-radius: var(--border-radius-medium);
+  padding: 18px;
+  margin-bottom: 18px;
+  box-shadow: var(--box-shadow-card);
+}
+
+.name-input-control {
+  padding: 10px 14px;
+  border: 1.5px solid var(--color-border-field);
+  border-radius: var(--border-radius-small);
+  background: var(--color-background-field);
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 0.98rem;
+}
+
+.inline-edit-input {
+  width: 100%;
+  max-width: 320px;
+}
+
+.notification-error-message {
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  border: 1.5px solid var(--color-status-danger);
+  background: var(--color-status-danger-background);
+  border-radius: var(--border-radius-small);
+  color: var(--color-status-danger);
+  font-weight: 500;
+}
+
+.table-actions-container {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+</style>

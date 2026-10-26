@@ -1,8 +1,10 @@
 <script setup lang="ts">
 
 import { formatDate } from '@/utils/formatters'
+import { getErrorMessage } from '@/utils/errors'
+import type { TableColumn } from '@/components/DataTable.vue'
 
-type Role = 'reader' | 'publisher' | 'administrator' | 'administration'
+type Role = 'reader' | 'publisher' | 'administrator'
 
 interface UserRow {
   id: number
@@ -40,6 +42,15 @@ const query = computed(() => ({
 const { data, refresh, pending } = useFetch<{ items: UserRow[]; total: number }>('/api/administration/users', { query })
 const users = computed(() => data.value?.items ?? [])
 
+const columns: TableColumn[] = [
+  { key: 'name', label: 'Name' },
+  { key: 'email', label: 'Email' },
+  { key: 'role', label: 'Role' },
+  { key: 'status', label: 'Status' },
+  { key: 'createdAt', label: 'Joined' },
+  { key: 'actions', label: 'Actions', align: 'right', width: '180px' }
+]
+
 watch([role, active], () => {
   page.value = 1
 })
@@ -74,8 +85,8 @@ async function openDetail(id: number) {
   try {
     const response = await $fetch<{ user: UserDetail }>(`/api/administration/users/${id}`)
     detail.value = response.user
-  } catch (e) {
-    error.value = getErrorMessage(e)
+  } catch (caughtError) {
+    error.value = getErrorMessage(caughtError)
   }
 }
 
@@ -90,8 +101,8 @@ async function toggleActive(user: UserRow) {
     await $fetch(`/api/administration/users/${user.id}/status`, { method: 'PATCH', body: { isActive: activating } })
     await refresh()
     if (detail.value?.id === user.id) detail.value.isActive = activating
-  } catch (e) {
-    error.value = getErrorMessage(e)
+  } catch (caughtError) {
+    error.value = getErrorMessage(caughtError)
   } finally {
     busy.value = false
   }
@@ -101,87 +112,85 @@ async function toggleActive(user: UserRow) {
 
 <template>
   <section>
-    <form class="administration-card administration-form" @submit.prevent="applySearch">
+    <form class="action-form-bar" @submit.prevent="applySearch">
       <input
           v-model="searchInput"
-          class="administration-input"
+          class="filter-input-control"
           type="search"
           placeholder="Search by name, publisher or email"
           aria-label="Search users"
       />
-      <select v-model="role" class="administration-select" aria-label="Filter by role">
+      <select v-model="role" class="filter-select-control" aria-label="Filter by role">
         <option value="">All roles</option>
         <option value="reader">Reader</option>
         <option value="publisher">Publisher</option>
         <option value="administrator">Administrator</option>
       </select>
-      <select v-model="active" class="administration-select" aria-label="Filter by status">
+      <select v-model="active" class="filter-select-control" aria-label="Filter by status">
         <option value="">Any status</option>
         <option value="true">Active</option>
         <option value="false">Inactive</option>
       </select>
-      <button class="administration-button administration-button-primary" type="submit">Search</button>
-      <button class="administration-button" type="button" @click="clearFilters">Clear</button>
+      <Button type="submit">Search</Button>
+      <Button variant="outline" type="button" @click="clearFilters">Clear</Button>
     </form>
 
-    <p v-if="error && !detail" class="administration-notice-error" role="alert">{{ error }}</p>
+    <p v-if="error && !detail" class="notification-error-message" role="alert">{{ error }}</p>
 
-    <div class="administration-table-wrapper">
-      <table class="administration-table">
-        <thead>
-        <tr>
-          <th>Name</th>
-          <th>Email</th>
-          <th>Role</th>
-          <th>Status</th>
-          <th>Joined</th>
-          <th style="width: 180px; text-align: right;">Actions</th>
-        </tr>
-        </thead>
-        <tbody>
-        <tr v-for="user in users" :key="user.id">
-          <td><strong>{{ getUserDisplayName(user) }}</strong></td>
-          <td>{{ user.email }}</td>
-          <td><span class="administration-badge" :class="`administration-badge-${user.role}`">{{ user.role }}</span></td>
-          <td>
-            <span class="administration-badge" :class="user.isActive ? 'administration-badge-active' : 'administration-badge-inactive'">
-              {{ user.isActive ? 'active' : 'inactive' }}
-            </span>
-          </td>
-          <td>{{ formatDate(user.createdAt) }}</td>
-          <td class="administration-actions" style="justify-content: flex-end;">
-            <button class="administration-button administration-button-small" type="button" @click="openDetail(user.id)">View</button>
-            <button
-                class="administration-button administration-button-small"
-                :class="{ 'administration-button-danger': user.isActive }"
-                type="button"
-                :disabled="busy || (user.isActive && user.id === me?.id)"
-                :title="user.id === me?.id ? 'You cannot deactivate your own account' : undefined"
-                @click="toggleActive(user)"
-            >
-              {{ user.isActive ? 'Deactivate' : 'Activate' }}
-            </button>
-          </td>
-        </tr>
-        </tbody>
-      </table>
-      <p v-if="!users.length" class="administration-empty">{{ pending ? 'Loading…' : 'No users found.' }}</p>
-    </div>
+    <DataTable
+        :columns="columns"
+        :rows="users"
+        row-key="id"
+        :pending="pending"
+        loading-message="Loading users..."
+        empty-message="No users found."
+    >
+      <template #cell-name="{ row }">
+        <strong>{{ getUserDisplayName(row) }}</strong>
+      </template>
 
-    <AdministrationPager v-model:page="page" :total="data?.total ?? 0" :page-size="pageSize" />
+      <template #cell-role="{ row }">
+        <StatusBadge :status="row.role" />
+      </template>
 
-    <AdministrationModal
+      <template #cell-status="{ row }">
+        <StatusBadge :status="row.isActive ? 'active' : 'inactive'" />
+      </template>
+
+      <template #cell-createdAt="{ row }">
+        {{ formatDate(row.createdAt) }}
+      </template>
+
+      <template #cell-actions="{ row }">
+        <div class="table-actions-container">
+          <Button size="small" variant="outline" @click="openDetail(row.id)">View</Button>
+          <Button
+              size="small"
+              :variant="row.isActive ? 'danger' : 'outline'"
+              :disabled="busy || (row.isActive && row.id === me?.id)"
+              :title="row.id === me?.id ? 'You cannot deactivate your own account' : undefined"
+              @click="toggleActive(row)"
+          >
+            {{ row.isActive ? 'Deactivate' : 'Activate' }}
+          </Button>
+        </div>
+      </template>
+    </DataTable>
+
+    <Pager v-model:page="page" :total="data?.total ?? 0" :page-size="pageSize" />
+
+    <Modal
         v-if="detail"
         :title="detail.role === 'publisher' ? (detail.publisherProfile?.publisherName || detail.email) : `${detail.firstName ?? ''} ${detail.lastName ?? ''}`.trim() || detail.email"
         @close="detail = null"
     >
-      <p v-if="error" class="administration-notice-error" role="alert">{{ error }}</p>
-      <dl class="administration-description-list">
+      <p v-if="error" class="notification-error-message" role="alert">{{ error }}</p>
+      <DescriptionList>
         <template v-if="detail.role === 'publisher'">
           <dt>Publisher name</dt>
           <dd><strong>{{ detail.publisherProfile?.publisherName || '—' }}</strong></dd>
           <dt>About</dt>
-          <dd class="administration-prewrap">{{ detail.publisherProfile?.description || 'No description provided.' }}</dd>
+          <dd class="multiline-content">{{ detail.publisherProfile?.description || 'No description provided.' }}</dd>
         </template>
         <template v-else>
           <dt>Name</dt>
@@ -190,30 +199,70 @@ async function toggleActive(user: UserRow) {
         <dt>Email</dt>
         <dd>{{ detail.email }}</dd>
         <dt>Role</dt>
-        <dd><span class="administration-badge" :class="`administration-badge-${detail.role}`">{{ detail.role }}</span></dd>
+        <dd><StatusBadge :status="detail.role" /></dd>
         <dt>Status</dt>
         <dd>
-          <span class="administration-badge" :class="detail.isActive ? 'administration-badge-active' : 'administration-badge-inactive'">
-            {{ detail.isActive ? 'active' : 'inactive' }}
-          </span>
+          <StatusBadge :status="detail.isActive ? 'active' : 'inactive'" />
         </dd>
         <dt>Joined</dt>
         <dd>{{ formatDate(detail.createdAt) }}</dd>
         <dt>Last updated</dt>
         <dd>{{ formatDate(detail.updatedAt) }}</dd>
-      </dl>
+      </DescriptionList>
       <template #footer>
-        <button
-            class="administration-button"
-            :class="{ 'administration-button-danger': detail.isActive }"
-            type="button"
+        <Button
+            :variant="detail.isActive ? 'danger' : 'primary'"
             :disabled="busy || (detail.isActive && detail.id === me?.id)"
             @click="toggleActive(detail)"
         >
           {{ detail.isActive ? 'Deactivate' : 'Activate' }}
-        </button>
-        <button class="administration-button" type="button" @click="detail = null">Close</button>
+        </Button>
+        <Button variant="outline" @click="detail = null">Close</Button>
       </template>
-    </AdministrationModal>
+    </Modal>
   </section>
 </template>
+
+<style scoped>
+
+.action-form-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  background: var(--color-background-surface);
+  border: 1.5px solid var(--color-border-main);
+  border-radius: var(--border-radius-medium);
+  padding: 18px;
+  margin-bottom: 18px;
+  box-shadow: var(--box-shadow-card);
+}
+
+.filter-input-control,
+.filter-select-control {
+  padding: 10px 14px;
+  border: 1.5px solid var(--color-border-field);
+  border-radius: var(--border-radius-small);
+  background: var(--color-background-field);
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 0.98rem;
+}
+
+.notification-error-message {
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  border: 1.5px solid var(--color-status-danger);
+  background: var(--color-status-danger-background);
+  border-radius: var(--border-radius-small);
+  color: var(--color-status-danger);
+  font-weight: 500;
+}
+
+.table-actions-container {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+</style>

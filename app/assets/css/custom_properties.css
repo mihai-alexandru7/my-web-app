@@ -1,0 +1,52 @@
+:root {
+  --font-family-serif: 'Sorts Mill Goudy', Georgia, serif;
+  --font-family-sans-serif: sans-serif;
+
+  --color-background-page: #f1ecd0;
+  --color-background-surface: #fffdf5;
+  --color-background-surface-card: #fffdf3;
+  --color-background-surface-alternate: #e8dfb6;
+  --color-background-surface-section: #efe7c2;
+  --color-background-field: #ffffff;
+  --color-background-overlay: rgba(20, 31, 40, 0.55);
+
+  --color-text-primary: #141f28;
+  --color-text-muted: #5a5740;
+
+  --color-border-subtle: #cfc495;
+  --color-border-main: #b8aa72;
+  --color-border-field: #7d754b;
+  --color-border-card: #ddd5a6;
+  --color-border-group: #a99c5e;
+
+  --color-action-primary: #54420e;
+  --color-action-primary-hover: #3b2e09;
+  --color-action-on-primary: #fffdd0;
+  --color-action-soft: #f4edc8;
+  --color-action-focus: #1f5fbf;
+
+  --color-status-success: #166034;
+  --color-status-success-background: #d3f0dc;
+
+  --color-status-warning: #75550a;
+  --color-status-warning-background: #fff0b8;
+
+  --color-status-danger: #9c1c15;
+  --color-status-danger-background: #ffebeb;
+  --color-status-danger-border: #d48b87;
+
+  --color-status-neutral: #3f464d;
+  --color-status-neutral-background: #e3e6e9;
+
+  --color-row-alternate: #fcfaf0;
+  --color-row-hover: #faf6e3;
+
+  --border-radius-small: 8px;
+  --border-radius-medium: 12px;
+  --border-radius-large: 16px;
+  --border-radius-extra-large: 20px;
+
+  --box-shadow-card: 0 4px 14px rgba(45, 35, 10, 0.05);
+  --box-shadow-elevated: 0 16px 40px rgba(45, 35, 10, 0.12);
+  --box-shadow-modal: 0 24px 60px rgba(0, 0, 0, 0.25);
+}

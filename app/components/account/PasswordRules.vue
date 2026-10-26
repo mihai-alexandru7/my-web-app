@@ -1,4 +1,5 @@
 <script setup lang="ts">
+
 const props = defineProps<{
   password: string
 }>()
@@ -10,14 +11,15 @@ const rules = computed(() => [
   { label: 'A special character', met: /[^A-Za-z0-9]/.test(props.password) },
 ])
 
-const isValid = computed(() => rules.value.every((r) => r.met) && props.password.length <= 128)
+const isValid = computed(() => rules.value.every((rule) => rule.met) && props.password.length <= 128)
 
 defineExpose({ isValid, rules })
+
 </script>
 
 <template>
-  <ul class="rules" aria-label="Password requirements">
-    <li v-for="rule in rules" :key="rule.label" :class="{ met: rule.met }">
+  <ul class="password-rules-list" aria-label="Password requirements">
+    <li v-for="rule in rules" :key="rule.label" class="password-rule-item" :class="{ 'is-met': rule.met }">
       <span aria-hidden="true">{{ rule.met ? '✓' : '•' }}</span>
       {{ rule.label }}
     </li>
@@ -25,7 +27,8 @@ defineExpose({ isValid, rules })
 </template>
 
 <style scoped>
-.rules {
+
+.password-rules-list {
   display: flex;
   flex-wrap: wrap;
   gap: 4px 16px;
@@ -33,10 +36,11 @@ defineExpose({ isValid, rules })
   padding: 0;
   list-style: none;
   font-size: 0.9rem;
-  color: var(--account-muted);
+  color: var(--color-text-muted);
 }
 
-.rules li.met {
-  color: var(--account-ok);
+.password-rule-item.is-met {
+  color: var(--color-status-success);
 }
+
 </style>

@@ -33,10 +33,10 @@ defineProps<{
   max-width: 320px;
   max-height: calc(100vh - 32px);
   overflow-y: auto;
-  background: #fffdf5;
-  border: 1.5px solid #b8aa72;
-  border-radius: 20px;
-  box-shadow: 0 16px 40px rgba(45, 35, 10, 0.18);
+  background: var(--color-background-surface);
+  border: 1.5px solid var(--color-border-main);
+  border-radius: var(--border-radius-extra-large);
+  box-shadow: var(--box-shadow-elevated);
   z-index: 1000;
 }
 

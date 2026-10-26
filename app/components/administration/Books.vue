@@ -1,6 +1,8 @@
 <script setup lang="ts">
 
 import { formatPrice, formatDate } from '@/utils/formatters'
+import { getErrorMessage } from '@/utils/errors'
+import type { TableColumn } from '@/components/DataTable.vue'
 
 type BookStatus = 'pending' | 'approved' | 'rejected' | 'withdrawn'
 
@@ -36,20 +38,28 @@ interface BookDetail {
   categories: NamedItem[]
 }
 
-const statuses: { id: BookStatus; label: string }[] = [
+const statuses: { id: string; label: string }[] = [
   { id: 'pending', label: 'Pending' },
   { id: 'approved', label: 'Approved' },
   { id: 'rejected', label: 'Rejected' },
   { id: 'withdrawn', label: 'Withdrawn' }
 ]
 
-const status = ref<BookStatus>('pending')
+const status = ref<string>('pending')
 const page = ref(1)
 const pageSize = 15
 const query = computed(() => ({ status: status.value, page: page.value, pageSize }))
 
 const { data, refresh, pending } = useFetch<{ items: BookRow[]; total: number }>('/api/administration/books', { query })
 const books = computed(() => data.value?.items ?? [])
+
+const columns: TableColumn[] = [
+  { key: 'title', label: 'Title' },
+  { key: 'publisherName', label: 'Publisher' },
+  { key: 'price', label: 'Price' },
+  { key: 'createdAt', label: 'Submitted' },
+  { key: 'actions', label: 'Actions', align: 'right', width: '180px' }
+]
 
 watch(status, () => {
   page.value = 1
@@ -68,8 +78,8 @@ async function run(action: () => Promise<unknown>): Promise<boolean> {
     await action()
     await refresh()
     return true
-  } catch (e) {
-    error.value = getErrorMessage(e)
+  } catch (caughtError) {
+    error.value = getErrorMessage(caughtError)
     return false
   } finally {
     busy.value = false
@@ -81,8 +91,8 @@ async function openDetail(id: number) {
   try {
     const response = await $fetch<{ book: BookDetail }>(`/api/administration/books/${id}`)
     detail.value = response.book
-  } catch (e) {
-    error.value = getErrorMessage(e)
+  } catch (caughtError) {
+    error.value = getErrorMessage(caughtError)
   }
 }
 
@@ -101,10 +111,10 @@ function startReject(id: number, title: string) {
 async function confirmReject() {
   if (!rejecting.value) return
   const { id } = rejecting.value
-  const ok = await run(() =>
+  const success = await run(() =>
       $fetch(`/api/administration/books/${id}/reject`, { method: 'POST', body: { reason: reason.value } }),
   )
-  if (ok) {
+  if (success) {
     rejecting.value = null
     detail.value = null
   }
@@ -121,88 +131,59 @@ async function withdraw(id: number, title: string) {
 
 <template>
   <section>
-    <div class="administration-tabs" role="tablist" aria-label="Filter by status">
-      <button
-          v-for="s in statuses"
-          :key="s.id"
-          class="administration-tab"
-          :class="{ 'is-active': status === s.id }"
-          type="button"
-          role="tab"
-          :aria-selected="status === s.id"
-          @click="status = s.id"
-      >
-        {{ s.label }}
-      </button>
-    </div>
+    <TabGroup v-model="status" :options="statuses" />
 
-    <p v-if="error && !detail && !rejecting" class="administration-notice-error" role="alert">{{ error }}</p>
+    <p v-if="error && !detail && !rejecting" class="notification-error-message" role="alert">{{ error }}</p>
 
-    <div class="administration-table-wrapper">
-      <table class="administration-table">
-        <thead>
-        <tr>
-          <th>Title</th>
-          <th>Publisher</th>
-          <th>Price</th>
-          <th>Submitted</th>
-          <th style="width: 180px; text-align: right;">Actions</th>
-        </tr>
-        </thead>
-        <tbody>
-        <tr v-for="book in books" :key="book.id">
-          <td>{{ book.title }}</td>
-          <td>{{ book.publisherName }}</td>
-          <td>{{ formatPrice(book.price) }}</td>
-          <td>{{ formatDate(book.createdAt) }}</td>
-          <td class="administration-actions" style="justify-content: flex-end;">
-            <button class="administration-button administration-button-small" type="button" @click="openDetail(book.id)">View</button>
-            <template v-if="book.status === 'pending'">
-              <button class="administration-button administration-button-small administration-button-primary" type="button" :disabled="busy" @click="approve(book.id)">
-                Approve
-              </button>
-              <button
-                  class="administration-button administration-button-small administration-button-danger"
-                  type="button"
-                  :disabled="busy"
-                  @click="startReject(book.id, book.title)"
-              >
-                Reject
-              </button>
-            </template>
-            <button
-                v-else-if="book.status === 'approved'"
-                class="administration-button administration-button-small administration-button-danger"
-                type="button"
-                :disabled="busy"
-                @click="withdraw(book.id, book.title)"
-            >
-              Withdraw
-            </button>
-          </td>
-        </tr>
-        </tbody>
-      </table>
-      <p v-if="!books.length" class="administration-empty">{{ pending ? 'Loading…' : 'No books with this status.' }}</p>
-    </div>
+    <DataTable
+        :columns="columns"
+        :rows="books"
+        row-key="id"
+        :pending="pending"
+        loading-message="Loading books..."
+        empty-message="No books with this status."
+    >
+      <template #cell-price="{ row }">{{ formatPrice(row.price) }}</template>
+      <template #cell-createdAt="{ row }">{{ formatDate(row.createdAt) }}</template>
+      <template #cell-actions="{ row }">
+        <div class="table-actions-container">
+          <Button variant="outline" size="small" @click="openDetail(row.id)">View</Button>
+          <template v-if="row.status === 'pending'">
+            <Button size="small" :disabled="busy" @click="approve(row.id)">Approve</Button>
+            <Button variant="danger" size="small" :disabled="busy" @click="startReject(row.id, row.title)">
+              Reject
+            </Button>
+          </template>
+          <Button
+              v-else-if="row.status === 'approved'"
+              variant="danger"
+              size="small"
+              :disabled="busy"
+              @click="withdraw(row.id, row.title)"
+          >
+            Withdraw
+          </Button>
+        </div>
+      </template>
+    </DataTable>
 
-    <AdministrationPager v-model:page="page" :total="data?.total ?? 0" :page-size="pageSize" />
+    <Pager v-model:page="page" :total="data?.total ?? 0" :page-size="pageSize" />
 
-    <AdministrationModal v-if="detail" :title="detail.title" @close="detail = null">
-      <p v-if="error" class="administration-notice-error" role="alert">{{ error }}</p>
-      <dl class="administration-description-list">
+    <Modal v-if="detail" :title="detail.title" @close="detail = null">
+      <p v-if="error" class="notification-error-message" role="alert">{{ error }}</p>
+      <DescriptionList>
         <dt>Status</dt>
-        <dd><span class="administration-badge" :class="`administration-badge-${detail.status}`">{{ detail.status }}</span></dd>
+        <dd><StatusBadge :status="detail.status" /></dd>
         <dt>Publisher</dt>
         <dd>{{ detail.publisherName }}</dd>
         <dt>Authors</dt>
-        <dd>{{ detail.authors.map((a) => a.name).join(', ') || '—' }}</dd>
+        <dd>{{ detail.authors.map((author) => author.name).join(', ') || '—' }}</dd>
         <dt>Language</dt>
         <dd>{{ detail.language.name }} ({{ detail.language.code }})</dd>
         <dt>Genres</dt>
-        <dd>{{ detail.genres.map((g) => g.name).join(', ') || '—' }}</dd>
+        <dd>{{ detail.genres.map((genre) => genre.name).join(', ') || '—' }}</dd>
         <dt>Categories</dt>
-        <dd>{{ detail.categories.map((c) => c.name).join(', ') || '—' }}</dd>
+        <dd>{{ detail.categories.map((category) => category.name).join(', ') || '—' }}</dd>
         <dt>Price</dt>
         <dd>{{ formatPrice(detail.price) }}</dd>
         <dt>ISBN</dt>
@@ -217,48 +198,85 @@ async function withdraw(id: number, title: string) {
         </template>
         <template v-if="detail.rejectionReason">
           <dt>Rejection reason</dt>
-          <dd class="administration-prewrap">{{ detail.rejectionReason }}</dd>
+          <dd class="multiline-content">{{ detail.rejectionReason }}</dd>
         </template>
         <dt>Description</dt>
-        <dd class="administration-prewrap">{{ detail.description || '—' }}</dd>
-      </dl>
+        <dd class="multiline-content">{{ detail.description || '—' }}</dd>
+      </DescriptionList>
 
       <template #footer>
         <template v-if="detail.status === 'pending'">
-          <button class="administration-button administration-button-danger" type="button" :disabled="busy" @click="startReject(detail.id, detail.title)">
+          <Button variant="danger" :disabled="busy" @click="startReject(detail.id, detail.title)">
             Reject
-          </button>
-          <button class="administration-button administration-button-primary" type="button" :disabled="busy" @click="approve(detail.id)">Approve</button>
+          </Button>
+          <Button :disabled="busy" @click="approve(detail.id)">Approve</Button>
         </template>
-        <button
+        <Button
             v-else-if="detail.status === 'approved'"
-            class="administration-button administration-button-danger"
-            type="button"
+            variant="danger"
             :disabled="busy"
             @click="withdraw(detail.id, detail.title)"
         >
           Withdraw from sale
-        </button>
-        <button class="administration-button" type="button" @click="detail = null">Close</button>
+        </Button>
+        <Button variant="outline" @click="detail = null">Close</Button>
       </template>
-    </AdministrationModal>
+    </Modal>
 
-    <AdministrationModal v-if="rejecting" :title="`Reject ${rejecting.title}`" @close="rejecting = null">
-      <p v-if="error" class="administration-notice-error" role="alert">{{ error }}</p>
-      <label for="reject-reason" class="administration-muted">The publisher will see this reason.</label>
+    <Modal v-if="rejecting" :title="`Reject ${rejecting.title}`" danger @close="rejecting = null">
+      <p v-if="error" class="notification-error-message" role="alert">{{ error }}</p>
+      <label for="reject-reason" class="modal-input-label">The publisher will see this reason.</label>
       <textarea
           id="reject-reason"
           v-model="reason"
-          class="administration-textarea"
+          class="rejection-reason-textarea"
           maxlength="500"
           placeholder="Why is this book being rejected?"
       />
       <template #footer>
-        <button class="administration-button" type="button" @click="rejecting = null">Cancel</button>
-        <button class="administration-button administration-button-danger" type="button" :disabled="busy || !reason.trim()" @click="confirmReject">
+        <Button variant="outline" @click="rejecting = null">Cancel</Button>
+        <Button variant="danger" :disabled="busy || !reason.trim()" @click="confirmReject">
           Reject book
-        </button>
+        </Button>
       </template>
-    </AdministrationModal>
+    </Modal>
   </section>
 </template>
+
+<style scoped>
+
+.notification-error-message {
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  border: 1.5px solid var(--color-status-danger);
+  background: var(--color-status-danger-background);
+  border-radius: var(--border-radius-small);
+  color: var(--color-status-danger);
+  font-weight: 500;
+}
+
+.table-actions-container {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.modal-input-label {
+  color: var(--color-text-muted);
+}
+
+.rejection-reason-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 100px;
+  padding: 10px 14px;
+  border: 1.5px solid var(--color-border-field);
+  border-radius: var(--border-radius-small);
+  background: var(--color-background-field);
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 0.98rem;
+  resize: vertical;
+}
+
+</style>

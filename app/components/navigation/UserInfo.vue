@@ -22,10 +22,10 @@ defineProps<{
   gap: 4px;
   margin-bottom: 6px;
   padding: 10px 14px;
-  background: #e8dfb6;
-  border: 1px solid #cfc495;
-  border-radius: 12px;
-  color: #141f28;
+  background: var(--color-background-surface-alternate);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--border-radius-medium);
+  color: var(--color-text-primary);
   font-size: 0.9rem;
   text-align: center;
   word-break: break-all;
@@ -34,7 +34,7 @@ defineProps<{
 .user-info-name {
   font-weight: 700;
   font-size: 1rem;
-  color: #54420e;
+  color: var(--color-action-primary);
 }
 
 </style>

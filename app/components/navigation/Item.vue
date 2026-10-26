@@ -41,10 +41,10 @@ const emit = defineEmits<{
   box-sizing: border-box;
   width: 100%;
   padding: 12px 16px;
-  background: #f4edd0;
-  border: 1.5px solid #cfc495;
-  border-radius: 12px;
-  color: #141f28;
+  background: var(--color-background-surface-card);
+  border: 1.5px solid var(--color-border-subtle);
+  border-radius: var(--border-radius-medium);
+  color: var(--color-text-primary);
   font-family: inherit;
   font-size: 1rem;
   font-weight: 500;
@@ -54,26 +54,26 @@ const emit = defineEmits<{
 }
 
 .navigation-item-button:hover {
-  background: #e8dfb6;
-  border-color: #54420e;
+  background: var(--color-background-surface-alternate);
+  border-color: var(--color-action-primary);
 }
 
 .navigation-item-button.router-link-exact-active {
-  background: #54420e;
-  border-color: #54420e;
-  color: #ffffff;
+  background: var(--color-action-primary);
+  border-color: var(--color-action-primary);
+  color: var(--color-action-on-primary);
   font-weight: 600;
 }
 
 .navigation-item-button.is-danger {
-  color: #9c1c15;
-  border-color: #d48b87;
-  background: #ffffff;
+  color: var(--color-status-danger);
+  border-color: var(--color-status-danger-border);
+  background: var(--color-background-field);
 }
 
 .navigation-item-button.is-danger:hover {
-  background: #ffebeb;
-  border-color: #9c1c15;
+  background: var(--color-status-danger-background);
+  border-color: var(--color-status-danger);
 }
 
 </style>

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 
 import { formatDate } from '@/utils/formatters'
+import { getErrorMessage } from '@/utils/errors'
+import type { TableColumn } from '@/components/DataTable.vue'
 
 interface ReviewRow {
   id: number
@@ -31,6 +33,15 @@ const query = computed(() => ({
 
 const { data, refresh, pending } = useFetch<{ items: ReviewRow[]; total: number }>('/api/administration/reviews', { query })
 const reviews = computed(() => data.value?.items ?? [])
+
+const columns: TableColumn[] = [
+  { key: 'book', label: 'Book' },
+  { key: 'reader', label: 'Reader' },
+  { key: 'rating', label: 'Rating' },
+  { key: 'comment', label: 'Comment' },
+  { key: 'createdAt', label: 'Date' },
+  { key: 'actions', label: 'Actions', align: 'right', width: '120px' }
+]
 
 const error = ref('')
 const busy = ref(false)
@@ -63,8 +74,8 @@ async function remove(review: ReviewRow) {
     } else {
       await refresh()
     }
-  } catch (e) {
-    error.value = getErrorMessage(e)
+  } catch (caughtError) {
+    error.value = getErrorMessage(caughtError)
   } finally {
     busy.value = false
   }
@@ -74,10 +85,10 @@ async function remove(review: ReviewRow) {
 
 <template>
   <div>
-    <form class="administration-card administration-form" @submit.prevent="applyFilters">
+    <form class="action-form-bar" @submit.prevent="applyFilters">
       <input
           v-model.number="bookIdInput"
-          class="administration-input administration-input-narrow"
+          class="numeric-filter-input"
           type="number"
           min="1"
           placeholder="Book ID"
@@ -85,48 +96,110 @@ async function remove(review: ReviewRow) {
       />
       <input
           v-model.number="userIdInput"
-          class="administration-input administration-input-narrow"
+          class="numeric-filter-input"
           type="number"
           min="1"
           placeholder="User ID"
           aria-label="Filter by user ID"
       />
-      <button class="administration-button administration-button-primary" type="submit">Filter</button>
-      <button class="administration-button" type="button" @click="clearFilters">Clear</button>
+      <Button type="submit">Filter</Button>
+      <Button variant="outline" type="button" @click="clearFilters">Clear</Button>
     </form>
 
-    <p v-if="error" class="administration-notice-error" role="alert">{{ error }}</p>
+    <p v-if="error" class="notification-error-message" role="alert">{{ error }}</p>
 
-    <div class="administration-table-wrapper">
-      <table class="administration-table">
-        <thead>
-        <tr>
-          <th>Book</th>
-          <th>Reader</th>
-          <th>Rating</th>
-          <th>Comment</th>
-          <th>Date</th>
-          <th style="width: 180px; text-align: right;">Actions</th>
-        </tr>
-        </thead>
-        <tbody>
-        <tr v-for="review in reviews" :key="review.id">
-          <td>{{ review.bookTitle }} <span class="administration-muted">#{{ review.bookId }}</span></td>
-          <td>{{ review.userFirstName }} {{ review.userLastName }} <span class="administration-muted">#{{ review.userId }}</span></td>
-          <td>{{ review.rating ? `${review.rating} / 5` : '—' }}</td>
-          <td class="administration-comment">{{ review.comment || '—' }}</td>
-          <td>{{ formatDate(review.createdAt) }}</td>
-          <td class="administration-actions" style="justify-content: flex-end;">
-            <button class="administration-button administration-button-small administration-button-danger" type="button" :disabled="busy" @click="remove(review)">
-              Delete
-            </button>
-          </td>
-        </tr>
-        </tbody>
-      </table>
-      <p v-if="!reviews.length" class="administration-empty">{{ pending ? 'Loading…' : 'No reviews found.' }}</p>
-    </div>
+    <DataTable
+        :columns="columns"
+        :rows="reviews"
+        row-key="id"
+        :pending="pending"
+        loading-message="Loading reviews..."
+        empty-message="No reviews found."
+    >
+      <template #cell-book="{ row }">
+        {{ row.bookTitle }} <span class="muted-identifier-text">#{{ row.bookId }}</span>
+      </template>
 
-    <AdministrationPager v-model:page="page" :total="data?.total ?? 0" :page-size="pageSize" />
+      <template #cell-reader="{ row }">
+        {{ row.userFirstName }} {{ row.userLastName }} <span class="muted-identifier-text">#{{ row.userId }}</span>
+      </template>
+
+      <template #cell-rating="{ row }">
+        {{ row.rating ? `${row.rating} / 5` : '—' }}
+      </template>
+
+      <template #cell-comment="{ row }">
+        <span class="review-comment-display">{{ row.comment || '—' }}</span>
+      </template>
+
+      <template #cell-createdAt="{ row }">
+        {{ formatDate(row.createdAt) }}
+      </template>
+
+      <template #cell-actions="{ row }">
+        <div class="table-actions-container">
+          <Button size="small" variant="danger" :disabled="busy" @click="remove(row)">
+            Delete
+          </Button>
+        </div>
+      </template>
+    </DataTable>
+
+    <Pager v-model:page="page" :total="data?.total ?? 0" :page-size="pageSize" />
   </div>
 </template>
+
+<style scoped>
+
+.action-form-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  background: var(--color-background-surface);
+  border: 1.5px solid var(--color-border-main);
+  border-radius: var(--border-radius-medium);
+  padding: 18px;
+  margin-bottom: 18px;
+  box-shadow: var(--box-shadow-card);
+}
+
+.numeric-filter-input {
+  width: 110px;
+  padding: 10px 14px;
+  border: 1.5px solid var(--color-border-field);
+  border-radius: var(--border-radius-small);
+  background: var(--color-background-field);
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 0.98rem;
+}
+
+.notification-error-message {
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  border: 1.5px solid var(--color-status-danger);
+  background: var(--color-status-danger-background);
+  border-radius: var(--border-radius-small);
+  color: var(--color-status-danger);
+  font-weight: 500;
+}
+
+.muted-identifier-text {
+  color: var(--color-text-muted);
+}
+
+.review-comment-display {
+  max-width: 380px;
+  display: inline-block;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.table-actions-container {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+</style>
