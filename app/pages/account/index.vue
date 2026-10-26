@@ -1,6 +1,5 @@
 <script setup lang="ts">
 
-import '@/assets/css/account.css'
 import { getFieldErrors, getErrorMessage } from '@/utils/errors'
 
 useSeoMeta({ title: 'My Account' })
@@ -17,7 +16,7 @@ const { data, refresh } = await useFetch<{
     email: string
     firstName: string | null
     lastName: string | null
-    role: 'reader' | 'publisher' | 'administration'
+    role: 'reader' | 'publisher' | 'administrator'
     createdAt: string
     publisherProfile?: {
       publisherName: string
@@ -104,10 +103,10 @@ async function handleSaveProfile() {
     await refresh()
     await refreshSession()
     closeModal()
-  } catch (err) {
-    const fields = getFieldErrors(err)
+  } catch (caughtError) {
+    const fields = getFieldErrors(caughtError)
     if (Object.keys(fields).length > 0) fieldErrors.value = fields
-    else modalError.value = getErrorMessage(err)
+    else modalError.value = getErrorMessage(caughtError)
   } finally {
     submitting.value = false
   }
@@ -129,10 +128,10 @@ async function handleSaveEmail() {
     await refresh()
     await refreshSession()
     closeModal()
-  } catch (err) {
-    const fields = getFieldErrors(err)
+  } catch (caughtError) {
+    const fields = getFieldErrors(caughtError)
     if (Object.keys(fields).length > 0) fieldErrors.value = fields
-    else modalError.value = getErrorMessage(err)
+    else modalError.value = getErrorMessage(caughtError)
   } finally {
     submitting.value = false
   }
@@ -160,10 +159,10 @@ async function handleSavePassword() {
       }
     })
     closeModal()
-  } catch (err) {
-    const fields = getFieldErrors(err)
+  } catch (caughtError) {
+    const fields = getFieldErrors(caughtError)
     if (Object.keys(fields).length > 0) fieldErrors.value = fields
-    else modalError.value = getErrorMessage(err)
+    else modalError.value = getErrorMessage(caughtError)
   } finally {
     submitting.value = false
   }
@@ -185,8 +184,8 @@ async function handleDeleteAccount() {
     })
     await clear()
     await navigateTo('/')
-  } catch (err) {
-    modalError.value = getErrorMessage(err)
+  } catch (caughtError) {
+    modalError.value = getErrorMessage(caughtError)
   } finally {
     submitting.value = false
   }
@@ -195,79 +194,77 @@ async function handleDeleteAccount() {
 </script>
 
 <template>
-  <div class="account-page">
-    <main class="account-main-wrapper-box">
-      <header class="account-main-card-header">
-        <h1 class="account-main-card-title">Manage your account</h1>
+  <div class="account-page-wrapper">
+    <main class="account-card-container">
+      <header class="account-header">
+        <h1 class="account-header-title">Manage your account</h1>
       </header>
 
-      <div class="account-inner-grid">
-        <section class="account-box-card">
+      <div class="account-layout-grid">
+        <section class="account-card-panel">
           <header class="panel-header">
             <h2 class="panel-title">Personal details</h2>
           </header>
 
           <div class="details-stack">
             <div class="detail-row">
-              <AccountDetailBox label="Account type">
-                <div>
-                  <span class="account-role-badge">{{ currentUser?.role }}</span>
-                </div>
-              </AccountDetailBox>
+              <DetailBox label="Account type">
+                <StatusBadge :status="currentUser?.role || ''" />
+              </DetailBox>
 
-              <AccountDetailBox label="Member since" :value="formatDateOnly(currentUser?.createdAt)" />
+              <DetailBox label="Member since" :value="formatDateOnly(currentUser?.createdAt)" />
             </div>
 
             <div v-if="currentUser?.role !== 'publisher'" class="detail-row">
-              <AccountDetailBox label="First name" :value="currentUser?.firstName" />
-              <AccountDetailBox label="Last name" :value="currentUser?.lastName" />
+              <DetailBox label="First name" :value="currentUser?.firstName" />
+              <DetailBox label="Last name" :value="currentUser?.lastName" />
             </div>
 
-            <AccountDetailBox
+            <DetailBox
                 v-else
                 label="Publisher name"
                 :value="currentUser?.publisherProfile?.publisherName"
             />
 
-            <AccountDetailBox label="Email address">
-              <span class="detail-value text-break">{{ currentUser?.email }}</span>
-            </AccountDetailBox>
+            <DetailBox label="Email address">
+              <span class="detail-value text-break-word">{{ currentUser?.email }}</span>
+            </DetailBox>
 
-            <AccountDetailBox v-if="currentUser?.role === 'publisher'" label="Description">
-              <span class="detail-value text-multiline">
+            <DetailBox v-if="currentUser?.role === 'publisher'" label="Description">
+              <span class="detail-value text-multiline-display">
                 {{ currentUser?.publisherProfile?.description || 'No description provided.' }}
               </span>
-            </AccountDetailBox>
+            </DetailBox>
           </div>
         </section>
 
-        <section class="account-box-card">
+        <section class="account-card-panel">
           <header class="panel-header">
             <h2 class="panel-title">Account options</h2>
           </header>
 
           <div class="actions-stack">
-            <AccountActionTile
+            <ActionTile
                 title="Change your personal details"
                 description=""
                 @click="openModal('profile')"
             />
 
-            <AccountActionTile
+            <ActionTile
                 title="Change your email address"
                 description=""
                 @click="openModal('email')"
             />
 
-            <AccountActionTile
+            <ActionTile
                 title="Change your password"
                 description=""
                 @click="openModal('password')"
             />
 
-            <div class="actions-divider" />
+            <div class="actions-separator" />
 
-            <AccountActionTile
+            <ActionTile
                 title="Delete your account"
                 description=""
                 danger
@@ -278,176 +275,310 @@ async function handleDeleteAccount() {
       </div>
     </main>
 
-    <AccountModal
+    <Modal
         v-if="activeModal === 'profile'"
         title="Change your personal details"
         @close="closeModal"
     >
-      <form @submit.prevent="handleSaveProfile">
-        <div class="modal-body">
-          <p v-if="modalError" class="account-message-error">{{ modalError }}</p>
+      <form class="account-modal-form" @submit.prevent="handleSaveProfile">
+        <p v-if="modalError" class="modal-notification-error">{{ modalError }}</p>
 
-          <div v-if="currentUser?.role !== 'publisher'" class="form-row">
-            <AccountFormField
-                v-model="profileForm.firstName"
-                label="First name"
-                name="firstName"
-                :show-label="true"
-                :error="fieldErrors.firstName"
-                required
-            />
-            <AccountFormField
-                v-model="profileForm.lastName"
-                label="Last name"
-                name="lastName"
-                :show-label="true"
-                :error="fieldErrors.lastName"
-                required
-            />
-          </div>
-
-          <template v-else>
-            <AccountFormField
-                v-model="profileForm.publisherName"
-                label="Publisher name"
-                name="publisherName"
-                :show-label="true"
-                :error="fieldErrors.publisherName"
-                required
-            />
-            <AccountFormField
-                v-model="profileForm.publisherDescription"
-                label="Publisher description"
-                name="publisherDescription"
-                multiline
-                :rows="4"
-                :show-label="true"
-            />
-          </template>
+        <div v-if="currentUser?.role !== 'publisher'" class="modal-form-pair">
+          <FormField
+              v-model="profileForm.firstName"
+              label="First name"
+              name="firstName"
+              :show-label="true"
+              :error="fieldErrors.firstName"
+              required
+          />
+          <FormField
+              v-model="profileForm.lastName"
+              label="Last name"
+              name="lastName"
+              :show-label="true"
+              :error="fieldErrors.lastName"
+              required
+          />
         </div>
-        <div class="modal-footer">
-          <button type="button" class="account-button-outline" @click="closeModal">Cancel</button>
-          <button type="submit" class="account-button-primary" :disabled="submitting">
+
+        <template v-else>
+          <FormField
+              v-model="profileForm.publisherName"
+              label="Publisher name"
+              name="publisherName"
+              :show-label="true"
+              :error="fieldErrors.publisherName"
+              required
+          />
+          <FormField
+              v-model="profileForm.publisherDescription"
+              label="Publisher description"
+              name="publisherDescription"
+              multiline
+              :rows="4"
+              :show-label="true"
+          />
+        </template>
+
+        <div class="modal-actions-footer">
+          <Button variant="outline" @click="closeModal">Cancel</Button>
+          <Button type="submit" :disabled="submitting">
             {{ submitting ? 'Saving…' : 'Save changes' }}
-          </button>
+          </Button>
         </div>
       </form>
-    </AccountModal>
+    </Modal>
 
-    <AccountModal
-        v-else-if="activeModal === 'email'"
+    <Modal
+        v-if="activeModal === 'email'"
         title="Change your email address"
         @close="closeModal"
     >
-      <form @submit.prevent="handleSaveEmail">
-        <div class="modal-body">
-          <p v-if="modalError" class="account-message-error">{{ modalError }}</p>
-          <AccountFormField
-              v-model="emailForm.newEmail"
-              label="New email address"
-              name="newEmail"
-              type="email"
-              :show-label="true"
-              :error="fieldErrors.newEmail"
-              required
-          />
-          <AccountFormField
-              v-model="emailForm.password"
-              label="Current password"
-              name="password"
-              type="password"
-              :show-label="true"
-              :error="fieldErrors.password"
-              required
-          />
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="account-button-outline" @click="closeModal">Cancel</button>
-          <button type="submit" class="account-button-primary" :disabled="submitting">
+      <form class="account-modal-form" @submit.prevent="handleSaveEmail">
+        <p v-if="modalError" class="modal-notification-error">{{ modalError }}</p>
+        <FormField
+            v-model="emailForm.newEmail"
+            label="New email address"
+            name="newEmail"
+            type="email"
+            :show-label="true"
+            :error="fieldErrors.newEmail"
+            required
+        />
+        <FormField
+            v-model="emailForm.password"
+            label="Current password"
+            name="password"
+            type="password"
+            :show-label="true"
+            :error="fieldErrors.password"
+            required
+        />
+
+        <div class="modal-actions-footer">
+          <Button variant="outline" @click="closeModal">Cancel</Button>
+          <Button type="submit" :disabled="submitting">
             {{ submitting ? 'Changing…' : 'Change email' }}
-          </button>
+          </Button>
         </div>
       </form>
-    </AccountModal>
+    </Modal>
 
-    <AccountModal
-        v-else-if="activeModal === 'password'"
+    <Modal
+        v-if="activeModal === 'password'"
         title="Change your password"
         @close="closeModal"
     >
-      <form @submit.prevent="handleSavePassword">
-        <div class="modal-body">
-          <p v-if="modalError" class="account-message-error">{{ modalError }}</p>
-          <AccountFormField
-              v-model="passwordForm.currentPassword"
-              label="Current password"
-              name="currentPassword"
-              type="password"
-              :show-label="true"
-              :error="fieldErrors.currentPassword"
-              required
-          />
-          <AccountFormField
-              v-model="passwordForm.newPassword"
-              label="New password"
-              name="newPassword"
-              type="password"
-              :show-label="true"
-              :error="fieldErrors.newPassword"
-              required
-          >
-            <template #hint>
-              <AccountPasswordRules ref="passwordRulesRef" :password="passwordForm.newPassword" />
-            </template>
-          </AccountFormField>
-          <AccountFormField
-              v-model="passwordForm.confirmPassword"
-              label="Confirm new password"
-              name="confirmPassword"
-              type="password"
-              :show-label="true"
-              :error="fieldErrors.confirmPassword"
-              required
-          />
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="account-button-outline" @click="closeModal">Cancel</button>
-          <button type="submit" class="account-button-primary" :disabled="submitting">
+      <form class="account-modal-form" @submit.prevent="handleSavePassword">
+        <p v-if="modalError" class="modal-notification-error">{{ modalError }}</p>
+        <FormField
+            v-model="passwordForm.currentPassword"
+            label="Current password"
+            name="currentPassword"
+            type="password"
+            :show-label="true"
+            :error="fieldErrors.currentPassword"
+            required
+        />
+        <FormField
+            v-model="passwordForm.newPassword"
+            label="New password"
+            name="newPassword"
+            type="password"
+            :show-label="true"
+            :error="fieldErrors.newPassword"
+            required
+        >
+          <template #hint>
+            <AccountPasswordRules ref="passwordRulesRef" :password="passwordForm.newPassword" />
+          </template>
+        </FormField>
+        <FormField
+            v-model="passwordForm.confirmPassword"
+            label="Confirm new password"
+            name="confirmPassword"
+            type="password"
+            :show-label="true"
+            :error="fieldErrors.confirmPassword"
+            required
+        />
+
+        <div class="modal-actions-footer">
+          <Button variant="outline" @click="closeModal">Cancel</Button>
+          <Button type="submit" :disabled="submitting">
             {{ submitting ? 'Changing…' : 'Change password' }}
-          </button>
+          </Button>
         </div>
       </form>
-    </AccountModal>
+    </Modal>
 
-    <AccountModal
-        v-else-if="activeModal === 'delete'"
+    <Modal
+        v-if="activeModal === 'delete'"
         title="Confirm account deletion"
         danger
         @close="closeModal"
     >
-      <form @submit.prevent="handleDeleteAccount">
-        <div class="modal-body">
-          <p class="delete-warning-text">
-            Warning! This action is permanent. Your account, personal data, and access to purchased books will be permanently deleted.
-          </p>
-          <p v-if="modalError" class="account-message-error">{{ modalError }}</p>
-          <AccountFormField
-              v-model="deleteForm.password"
-              label="Confirm with your password"
-              name="password"
-              type="password"
-              :show-label="true"
-              placeholder="Enter your current password"
-              required
-          />
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="account-button-outline" @click="closeModal">Cancel</button>
-          <button type="submit" class="account-button-danger" :disabled="submitting || !deleteForm.password">
+      <form class="account-modal-form" @submit.prevent="handleDeleteAccount">
+        <p class="deletion-warning-notice">
+          Warning! This action is permanent. Your account, personal data, and access to purchased books will be permanently deleted.
+        </p>
+        <p v-if="modalError" class="modal-notification-error">{{ modalError }}</p>
+        <FormField
+            v-model="deleteForm.password"
+            label="Confirm with your password"
+            name="password"
+            type="password"
+            :show-label="true"
+            placeholder="Enter your current password"
+            required
+        />
+
+        <div class="modal-actions-footer">
+          <Button variant="outline" @click="closeModal">Cancel</Button>
+          <Button type="submit" variant="danger" :disabled="submitting || !deleteForm.password">
             {{ submitting ? 'Deleting…' : 'Delete account' }}
-          </button>
+          </Button>
         </div>
       </form>
-    </AccountModal>
+    </Modal>
   </div>
 </template>
+
+<style scoped>
+
+.account-page-wrapper {
+  min-height: 100vh;
+  padding: 100px 24px 60px;
+  box-sizing: border-box;
+  font-family: var(--font-family-serif);
+  color: var(--color-text-primary);
+  background: var(--color-background-page);
+}
+
+.account-card-container {
+  max-width: 1100px;
+  margin: 0 auto;
+  background: var(--color-background-surface-card);
+  border: 1px solid var(--color-border-card);
+  border-radius: var(--border-radius-large);
+  padding: 36px;
+  box-shadow: var(--box-shadow-elevated);
+}
+
+.account-header {
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.account-header-title {
+  margin: 0;
+  font-size: 2.1rem;
+  font-weight: 400;
+  color: var(--color-action-primary);
+}
+
+.account-layout-grid {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 28px;
+  align-items: start;
+}
+
+.account-card-panel {
+  background: #ffffff;
+  border: 1px solid var(--color-border-card);
+  border-radius: var(--border-radius-medium);
+  padding: 24px;
+  box-shadow: var(--box-shadow-card);
+}
+
+.panel-header {
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--color-border-card);
+}
+
+.panel-title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 400;
+  color: var(--color-action-primary);
+}
+
+.details-stack,
+.actions-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.detail-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.actions-separator {
+  height: 1px;
+  background: var(--color-border-card);
+  margin: 4px 0;
+}
+
+.text-break-word {
+  word-break: break-all;
+}
+
+.text-multiline-display {
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
+.account-modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.modal-form-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.modal-notification-error {
+  margin: 0;
+  padding: 10px 14px;
+  background: var(--color-status-danger-background);
+  border: 1px solid var(--color-status-danger);
+  border-radius: var(--border-radius-small);
+  color: var(--color-status-danger);
+  font-size: 0.9rem;
+}
+
+.deletion-warning-notice {
+  margin: 0;
+  padding: 12px 14px;
+  background: var(--color-status-danger-background);
+  border: 1px solid var(--color-status-danger-border);
+  border-radius: var(--border-radius-small);
+  color: var(--color-status-danger);
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+.modal-actions-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+@media (max-width: 900px) {
+  .account-layout-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+</style>

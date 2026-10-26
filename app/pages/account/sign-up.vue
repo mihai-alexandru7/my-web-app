@@ -30,14 +30,12 @@ const submitting = ref(false)
 const generalError = ref('')
 const fieldErrors = ref<Record<string, string>>({})
 
-const emailField = ref<{ focus: () => void } | null>(null)
-const firstNameField = ref<{ focus: () => void } | null>(null)
-const publisherNameField = ref<{ focus: () => void } | null>(null)
-const passwordRulesRef = ref<{ isValid: boolean } | null>(null)
+const roleOptions = [
+  { value: 'reader', title: 'Reader', description: 'Browse, buy and read books online.' },
+  { value: 'publisher', title: 'Publisher', description: 'Upload and sell your books.' },
+]
 
-onMounted(() => {
-  emailField.value?.focus()
-})
+const passwordRulesRef = ref<{ isValid: boolean } | null>(null)
 
 const emailIsValid = computed(() => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value.trim()))
 const passwordIsValid = computed(() => Boolean(passwordRulesRef.value?.isValid))
@@ -55,17 +53,11 @@ watch(firstName, () => { delete fieldErrors.value.firstName })
 watch(lastName, () => { delete fieldErrors.value.lastName })
 watch(publisherName, () => { delete fieldErrors.value.publisherName })
 watch(password, () => { delete fieldErrors.value.password })
-watch(role, async (newRole) => {
+watch(role, () => {
   delete fieldErrors.value.firstName
   delete fieldErrors.value.lastName
   delete fieldErrors.value.publisherName
   delete fieldErrors.value.publisherDescription
-  await nextTick()
-  if (newRole === 'reader') {
-    firstNameField.value?.focus()
-  } else {
-    publisherNameField.value?.focus()
-  }
 })
 
 async function continueToDetails() {
@@ -77,19 +69,11 @@ async function continueToDetails() {
   generalError.value = ''
   delete fieldErrors.value.email
   emailConfirmed.value = true
-  await nextTick()
-  if (role.value === 'reader') {
-    firstNameField.value?.focus()
-  } else {
-    publisherNameField.value?.focus()
-  }
 }
 
 async function changeEmail() {
   emailConfirmed.value = false
   generalError.value = ''
-  await nextTick()
-  emailField.value?.focus()
 }
 
 async function createAccount() {
@@ -121,9 +105,9 @@ async function createAccount() {
     })
     await refreshSession()
     await navigateTo(redirectPath.value)
-  } catch (error) {
-    const fields = getFieldErrors(error)
-    const errorMessage = getErrorMessage(error)
+  } catch (caughtError) {
+    const fields = getFieldErrors(caughtError)
+    const errorMessage = getErrorMessage(caughtError)
 
     if (Object.keys(fields).length > 0) {
       fieldErrors.value = fields
@@ -152,139 +136,150 @@ function cancel() {
 </script>
 
 <template>
-  <AccountCard title="Create your account" @cancel="cancel">
-    <AccountForm
-        submit-label="Continue"
-        :can-submit="emailIsValid"
-        :hide-submit="emailConfirmed"
-        @submit="continueToDetails"
-    >
-      <AccountFormField
-          ref="emailField"
+  <CenteredCard title="Create your account" @cancel="cancel">
+    <form v-if="!emailConfirmed" class="authentication-form-container" @submit.prevent="continueToDetails">
+      <FormField
           v-model="email"
           label="Email address"
           name="email"
           type="email"
           autocomplete="email"
-          inputmode="email"
           placeholder="Email address"
-          :readonly="emailConfirmed"
+          :show-label="false"
           :error="fieldErrors.email"
-          :action-label="emailConfirmed ? 'Change' : undefined"
+      />
+      <Button type="submit" :disabled="!emailIsValid">Continue</Button>
+    </form>
+
+    <div v-else class="authentication-form-container">
+      <FormField
+          v-model="email"
+          label="Email address"
+          name="email"
+          type="email"
+          autocomplete="email"
+          :show-label="false"
+          :readonly="true"
+          action-label="Change"
           @action="changeEmail"
       />
-    </AccountForm>
 
-    <Transition name="reveal">
-      <AccountForm
-          v-if="emailConfirmed"
-          submit-label="Create account"
-          pending-label="Creating account…"
-          :submitting="submitting"
-          :can-submit="canCreate"
-          :error="generalError"
-          @submit="createAccount"
-      >
-        <AccountRoleSelector v-model="role" :disabled="submitting" />
+      <form class="authentication-form-container" @submit.prevent="createAccount">
+        <OptionSelector
+            v-model="role"
+            label="Account type"
+            :options="roleOptions"
+            :disabled="submitting"
+        />
 
-        <div v-if="role === 'reader'" class="field-pair">
-          <AccountFormField
-              ref="firstNameField"
+        <div v-if="role === 'reader'" class="form-fields-grid-pair">
+          <FormField
               v-model="firstName"
               label="First name"
               name="firstName"
               autocomplete="given-name"
               placeholder="First name"
+              :show-label="false"
               :maxlength="100"
               :error="fieldErrors.firstName"
           />
-          <AccountFormField
+          <FormField
               v-model="lastName"
               label="Last name"
               name="lastName"
               autocomplete="family-name"
               placeholder="Last name"
+              :show-label="false"
               :maxlength="100"
               :error="fieldErrors.lastName"
           />
         </div>
 
         <template v-else>
-          <AccountFormField
-              ref="publisherNameField"
+          <FormField
               v-model="publisherName"
               label="Publisher name"
               name="publisherName"
               autocomplete="organization"
               placeholder="Publisher name"
+              :show-label="false"
               :maxlength="200"
               :error="fieldErrors.publisherName"
           />
-          <AccountFormField
+          <FormField
               v-model="publisherDescription"
               label="Description (optional)"
               name="publisherDescription"
               placeholder="Description (optional)"
               multiline
+              :show-label="false"
               :rows="3"
               :maxlength="2000"
               :error="fieldErrors.publisherDescription"
           />
         </template>
 
-        <AccountFormField
+        <FormField
             v-model="password"
             label="Password"
             name="password"
             type="password"
             autocomplete="new-password"
             placeholder="Password"
+            :show-label="false"
             :maxlength="128"
             :error="fieldErrors.password"
         >
           <template #hint>
             <AccountPasswordRules ref="passwordRulesRef" :password="password" />
           </template>
-        </AccountFormField>
-      </AccountForm>
-    </Transition>
+        </FormField>
 
-    <p class="switch">
+        <p v-if="generalError" class="authentication-error-message" role="alert">{{ generalError }}</p>
+
+        <Button type="submit" :disabled="!canCreate || submitting">
+          {{ submitting ? 'Creating account…' : 'Create account' }}
+        </Button>
+      </form>
+    </div>
+
+    <p class="navigation-switch-mode-text">
       Already have an account?
-      <NuxtLink class="link" :to="{ path: '/account/sign-in', query: route.query }">Sign in</NuxtLink>
+      <NuxtLink class="navigation-switch-mode-link" :to="{ path: '/account/sign-in', query: route.query }">Sign in</NuxtLink>
     </p>
-  </AccountCard>
+  </CenteredCard>
 </template>
 
 <style scoped>
 
-.field-pair {
+.authentication-form-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.form-fields-grid-pair {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
   gap: 16px;
 }
 
-.switch {
+.authentication-error-message {
+  margin: 0;
+  color: var(--color-status-danger);
+  font-size: 0.9rem;
+}
+
+.navigation-switch-mode-text {
   margin: 0;
   text-align: center;
-  color: var(--account-muted);
+  color: var(--color-text-muted);
 }
 
-.link {
-  color: var(--account-accent);
+.navigation-switch-mode-link {
+  color: var(--color-action-primary);
   text-decoration: underline;
   text-underline-offset: 3px;
-}
-
-.reveal-enter-active,
-.reveal-leave-active {
-  transition: opacity 0.18s ease, transform 0.18s ease;
-}
-
-.reveal-enter-from,
-.reveal-leave-to {
-  opacity: 0;
-  transform: translateY(-6px);
 }
 
 </style>
