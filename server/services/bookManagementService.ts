@@ -46,7 +46,10 @@ export const bookManagementService = {
     async withdraw(id: number, reviewerId: number) {
         const withdrawn = await getDatabase().transaction(async (transaction) => {
             const updated = await bookRepository.withdrawIfApproved(id, { reviewerId }, transaction)
-            if (updated) await bookRepository.removeFromCarts(id, transaction)
+            if (updated) {
+                await bookRepository.removeFromCarts(id, transaction)
+                await bookRepository.removeFromWishlists(id, transaction)
+            }
             return updated
         })
         if (withdrawn) {

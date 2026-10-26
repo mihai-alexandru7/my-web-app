@@ -5,13 +5,15 @@ import {
     authors,
     bookAuthors,
     bookCategories,
+    wishlistItems,
     cartItems,
     bookGenres,
     books,
     categories,
     genres,
     languages,
-    publisherProfiles
+    publisherProfiles,
+    userLibrary
 } from '#server/database/schema'
 
 export type BookStatus = typeof books.$inferSelect['status']
@@ -155,5 +157,46 @@ export const bookRepository = {
         await executor
             .delete(cartItems)
             .where(eq(cartItems.bookId, bookId))
+    },
+
+    async removeFromWishlists(
+        bookId: number,
+        executor: Executor = getDatabase()
+    ): Promise<void> {
+        await executor
+            .delete(wishlistItems)
+            .where(eq(wishlistItems.bookId, bookId))
+    },
+
+    async findFilePaths(
+        id: number,
+        executor: Executor = getDatabase()
+    ) {
+        const [row] = await executor
+            .select({
+                id: books.id,
+                publisherId: books.publisherId,
+                status: books.status,
+                coverPath: books.coverPath,
+                samplePath: books.samplePath,
+                filePath: books.filePath,
+                title: books.title
+            })
+            .from(books)
+            .where(eq(books.id, id))
+            .limit(1)
+        return row ?? null
+    },
+
+    async hasPurchased(
+        userId: number,
+        bookId: number,
+        executor: Executor = getDatabase()
+    ): Promise<boolean> {
+        const [row] = await executor
+            .select({ count: count() })
+            .from(userLibrary)
+            .where(and(eq(userLibrary.userId, userId), eq(userLibrary.bookId, bookId)))
+        return (row?.count ?? 0) > 0
     }
 }
