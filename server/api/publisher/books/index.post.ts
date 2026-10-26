@@ -1,5 +1,6 @@
 import { createBookSchema } from '#server/schemas/publisher'
 import { publisherBookService } from '#server/services/publisherBookService'
+import { readBookUpload } from '#server/utils/multipart'
 
 export default defineEventHandler(async (event) => {
     const publisher = await requireRole(event, 'publisher')

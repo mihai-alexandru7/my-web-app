@@ -1,10 +1,11 @@
+import { extname } from 'node:path'
 import { idParamSchema } from '#server/schemas/common'
 import { bookRepository } from '#server/repositories/bookRepository'
 import { sendStoredFile } from '#server/utils/fileStorage'
 
 export default defineEventHandler(async (event) => {
-    const { user } = await requireUserSession(event)
-    const { id } = await getValidatedRouterParams(event, idParamSchema.parse)
+    const user = await requireActiveUser(event)
+    const { id } = validatedParams(event, idParamSchema)
 
     const book = await bookRepository.findFilePaths(id)
     if (!book) {
@@ -13,7 +14,7 @@ export default defineEventHandler(async (event) => {
 
     const isOwnerPublisher = user.role === 'publisher' && book.publisherId === user.id
     const isAdmin = user.role === 'administrator'
-    const isBuyer = await bookRepository.hasPurchased(user.id, id)
+    const isBuyer = !isAdmin && !isOwnerPublisher && await bookRepository.hasPurchased(user.id, id)
 
     if (!isAdmin && !isOwnerPublisher && !isBuyer) {
         throw createError({
@@ -23,6 +24,7 @@ export default defineEventHandler(async (event) => {
     }
 
     return sendStoredFile(event, book.filePath, {
-        disposition: `inline; filename="${encodeURIComponent(book.title)}"`
+        cacheControl: 'private, no-store',
+        disposition: `inline; filename="${encodeURIComponent(book.title)}${extname(book.filePath)}"`
     })
 })
