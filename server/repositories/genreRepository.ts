@@ -1,7 +1,7 @@
-import { asc, eq } from 'drizzle-orm'
+import { asc, count, eq } from 'drizzle-orm'
 import { getDatabase } from '#server/utils/database'
 import type { Executor } from '#server/utils/database'
-import { genres } from '#server/database/schema'
+import { bookGenres, genres } from '#server/database/schema'
 
 export const genreRepository = {
     async list(
@@ -23,6 +23,17 @@ export const genreRepository = {
             .where(eq(genres.id, id))
             .limit(1)
         return genre ?? null
+    },
+
+    async countBooks(
+        id: number,
+        executor: Executor = getDatabase()
+    ): Promise<number> {
+        const [row] = await executor
+            .select({ total: count() })
+            .from(bookGenres)
+            .where(eq(bookGenres.genreId, id))
+        return row?.total ?? 0
     },
 
     async create(

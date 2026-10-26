@@ -104,6 +104,8 @@ export const publisherBookRepository = {
             .select({
                 id: books.id,
                 status: books.status,
+                title: books.title,
+                description: books.description,
                 filePath: books.filePath,
                 coverPath: books.coverPath,
                 samplePath: books.samplePath
@@ -113,6 +115,18 @@ export const publisherBookRepository = {
             .limit(1)
             .for('update')
         return row ?? null
+    },
+
+    async findAuthorNames(
+        bookId: number,
+        executor: Executor = getDatabase()
+    ): Promise<string[]> {
+        const rows = await executor
+            .select({ name: authors.name })
+            .from(bookAuthors)
+            .innerJoin(authors, eq(authors.id, bookAuthors.authorId))
+            .where(eq(bookAuthors.bookId, bookId))
+        return rows.map((row) => row.name)
     },
 
     async insert(
@@ -153,6 +167,7 @@ export const publisherBookRepository = {
         data: BookColumns,
         executor: Executor = getDatabase()
     ): Promise<void> {
+        if (Object.keys(data).length === 0) return
         await executor
             .update(books)
             .set(data)
@@ -202,6 +217,7 @@ export const publisherBookRepository = {
         ids: number[],
         executor: Executor = getDatabase()
     ): Promise<number> {
+        if (!ids.length) return 0
         const [row] = await executor
             .select({ total: count() })
             .from(genres)
@@ -213,6 +229,7 @@ export const publisherBookRepository = {
         ids: number[],
         executor: Executor = getDatabase()
     ): Promise<number> {
+        if (!ids.length) return 0
         const [row] = await executor
             .select({ total: count() })
             .from(categories)
@@ -228,10 +245,11 @@ export const publisherBookRepository = {
         await executor
             .delete(bookAuthors)
             .where(eq(bookAuthors.bookId, bookId))
-        if (authorIds.length) {
+        const unique = [...new Set(authorIds)]
+        if (unique.length) {
             await executor
                 .insert(bookAuthors)
-                .values(authorIds.map((authorId) => ({ bookId, authorId })))
+                .values(unique.map((authorId) => ({ bookId, authorId })))
         }
     },
 
@@ -243,10 +261,11 @@ export const publisherBookRepository = {
         await executor
             .delete(bookGenres)
             .where(eq(bookGenres.bookId, bookId))
-        if (genreIds.length) {
+        const unique = [...new Set(genreIds)]
+        if (unique.length) {
             await executor
                 .insert(bookGenres)
-                .values(genreIds.map((genreId) => ({ bookId, genreId })))
+                .values(unique.map((genreId) => ({ bookId, genreId })))
         }
     },
 
@@ -258,10 +277,11 @@ export const publisherBookRepository = {
         await executor
             .delete(bookCategories)
             .where(eq(bookCategories.bookId, bookId))
-        if (categoryIds.length) {
+        const unique = [...new Set(categoryIds)]
+        if (unique.length) {
             await executor
                 .insert(bookCategories)
-                .values(categoryIds.map((categoryId) => ({ bookId, categoryId })))
+                .values(unique.map((categoryId) => ({ bookId, categoryId })))
         }
     }
 }

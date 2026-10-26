@@ -5,7 +5,7 @@ export const reviewManagementService = {
     async list(filter: ReviewFilter, page: number, pageSize: number) {
         const [items, total] = await Promise.all([
             reviewRepository.list(filter, { limit: pageSize, offset: (page - 1) * pageSize }),
-            reviewRepository.countByFilter(filter),
+            reviewRepository.count(filter)
         ])
         return { items, total, page, pageSize }
     },

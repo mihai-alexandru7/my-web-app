@@ -3,6 +3,6 @@ import { bookManagementService } from '#server/services/bookManagementService'
 
 export default defineEventHandler(async (event) => {
     await requireRole(event, 'administrator')
-    const { status, page, pageSize } = await getValidatedQuery(event, bookListQuerySchema.parse)
+    const { status, page, pageSize } = validatedQuery(event, bookListQuerySchema)
     return bookManagementService.list(status, page, pageSize)
 })

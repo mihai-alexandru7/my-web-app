@@ -5,6 +5,11 @@ import { books, reviews, users } from '#server/database/schema'
 
 export type ReviewFilter = { bookId?: number; userId?: number }
 
+export type UpdateReviewData = {
+    rating?: number | null
+    comment?: string | null
+}
+
 function whereClause(filter: ReviewFilter) {
     return and(
         filter.bookId ? eq(reviews.bookId, filter.bookId) : undefined,
@@ -13,6 +18,24 @@ function whereClause(filter: ReviewFilter) {
 }
 
 export const reviewRepository = {
+    async findById(id: number, executor: Executor = getDatabase()) {
+        const [row] = await executor
+            .select()
+            .from(reviews)
+            .where(eq(reviews.id, id))
+            .limit(1)
+        return row ?? null
+    },
+
+    async findByUserAndBook(userId: number, bookId: number, executor: Executor = getDatabase()) {
+        const [row] = await executor
+            .select()
+            .from(reviews)
+            .where(and(eq(reviews.userId, userId), eq(reviews.bookId, bookId)))
+            .limit(1)
+        return row ?? null
+    },
+
     async list(
         filter: ReviewFilter,
         options: { limit: number; offset: number },
@@ -40,10 +63,7 @@ export const reviewRepository = {
             .offset(options.offset)
     },
 
-    async countByFilter(
-        filter: ReviewFilter,
-        executor: Executor = getDatabase()
-    ): Promise<number> {
+    async count(filter: ReviewFilter, executor: Executor = getDatabase()): Promise<number> {
         const [row] = await executor
             .select({ total: count() })
             .from(reviews)
@@ -51,10 +71,48 @@ export const reviewRepository = {
         return row?.total ?? 0
     },
 
-    async delete(
-        id: number,
+    async create(
+        data: { userId: number; bookId: number; rating?: number | null; comment?: string | null },
         executor: Executor = getDatabase()
-    ): Promise<boolean> {
+    ): Promise<number> {
+        const [res] = await executor
+            .insert(reviews)
+            .values(data)
+            .$returningId()
+        return res.id
+    },
+
+    async update(id: number, data: UpdateReviewData, executor: Executor = getDatabase()): Promise<boolean> {
+        const [res] = await executor
+            .update(reviews)
+            .set({
+                rating: data.rating,
+                comment: data.comment,
+                updatedAt: new Date()
+            })
+            .where(eq(reviews.id, id))
+        return res.affectedRows > 0
+    },
+
+    async upsert(
+        data: { userId: number; bookId: number; rating?: number | null; comment?: string | null },
+        executor: Executor = getDatabase()
+    ): Promise<void> {
+        const updateSet: Record<string, any> = {
+            updatedAt: new Date()
+        }
+        if (data.rating !== undefined) updateSet.rating = data.rating
+        if (data.comment !== undefined) updateSet.comment = data.comment
+
+        await executor
+            .insert(reviews)
+            .values(data)
+            .onDuplicateKeyUpdate({
+                set: updateSet
+            })
+    },
+
+    async delete(id: number, executor: Executor = getDatabase()): Promise<boolean> {
         const [result] = await executor
             .delete(reviews)
             .where(eq(reviews.id, id))

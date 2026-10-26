@@ -1,6 +1,7 @@
 import { userRepository } from '#server/repositories/userRepository'
 import { getDatabase } from '#server/utils/database'
 import { toSessionUser } from '#server/utils/authorization'
+import { isForeignKeyViolation } from '#server/utils/mysqlErrors'
 import type {
     SignUpInput,
     SignInInput,
@@ -54,7 +55,7 @@ export const accountService = {
                         {
                             userId: id,
                             publisherName: input.publisherName,
-                            description: input.publisherDescription
+                            description: input.publisherDescription || undefined
                         },
                         transaction
                     )
@@ -141,7 +142,8 @@ export const accountService = {
                         userId,
                         {
                             publisherName: input.publisherName,
-                            description: input.publisherDescription
+                            // an empty string clears the description
+                            description: input.publisherDescription === undefined ? undefined : (input.publisherDescription || null)
                         },
                         transaction
                     )
@@ -219,6 +221,13 @@ export const accountService = {
             })
         }
 
+        if (user.role === 'administrator') {
+            throw createError({
+                statusCode: 403,
+                message: 'Administrator accounts cannot be deleted. Ask another administrator to deactivate it instead.'
+            })
+        }
+
         const valid = await verifyPassword(user.passwordHash, passwordInput)
         if (!valid) {
             throw createError({
@@ -229,10 +238,13 @@ export const accountService = {
 
         try {
             await userRepository.delete(userId)
+            return { ok: true, deleted: true }
         } catch (error) {
+            // Accounts with orders or published books are referenced elsewhere (ON DELETE RESTRICT):
+            // keep the rows for the sales history and deactivate the account instead.
+            if (!isForeignKeyViolation(error)) throw error
             await userRepository.setActive(userId, false)
+            return { ok: true, deleted: false }
         }
-
-        return { ok: true }
     }
 }

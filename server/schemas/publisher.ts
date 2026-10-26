@@ -8,6 +8,7 @@ import {
     emptyToUndefined,
     emptyToNull,
     toArray,
+    toOptionalArray,
     atLeastOneField
 } from '#server/schemas/common'
 
@@ -64,19 +65,21 @@ export const createBookSchema = z.object({
     categoryIds: z.preprocess(toArray, categoryIdList)
 })
 
-export const updateBookSchema = atLeastOneField(
-    z.object({
-        title,
-        description: z.preprocess(emptyToNull, description.nullable()),
-        price,
-        languageId: idSchema,
-        isbn: z.preprocess(emptyToNull, isbn.nullable()),
-        publishedYear: z.preprocess(emptyToNull, publishedYear.nullable()),
-        authors: authorList,
-        genreIds: genreIdList,
-        categoryIds: categoryIdList,
-    })
-)
+const baseUpdateBookSchema = z.object({
+    title,
+    description: z.preprocess(emptyToNull, description.nullable()),
+    price,
+    languageId: idSchema,
+    isbn: z.preprocess(emptyToNull, isbn.nullable()),
+    publishedYear: z.preprocess(emptyToNull, publishedYear.nullable()),
+    authors: z.preprocess(toOptionalArray, authorList.optional()),
+    genreIds: z.preprocess(toOptionalArray, genreIdList.optional()),
+    categoryIds: z.preprocess(toOptionalArray, categoryIdList.optional())
+})
+
+export const updateBookFieldsSchema = baseUpdateBookSchema.partial()
+
+export const updateBookSchema = atLeastOneField(baseUpdateBookSchema)
 
 export const publisherBookListQuerySchema = paginationSchema.extend({
     status: bookStatusSchema.optional(),
@@ -95,6 +98,6 @@ export const salesReportQuerySchema = z
     })
 
 export type CreateBookInput = z.infer<typeof createBookSchema>
-export type UpdateBookInput = z.infer<typeof updateBookSchema>
+export type UpdateBookInput = z.infer<typeof updateBookFieldsSchema>
 export type PublisherBookListQuery = z.infer<typeof publisherBookListQuerySchema>
 export type SalesReportQuery = z.infer<typeof salesReportQuerySchema>

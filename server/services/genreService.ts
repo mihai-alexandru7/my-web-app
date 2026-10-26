@@ -36,6 +36,16 @@ export const genreService = {
     },
 
     async remove(id: number) {
+        // The book_genres join table cascades, so without this check a
+        // genre in use would silently disappear from every book instead of being refused.
+        const inUse = await genreRepository.countBooks(id)
+        if (inUse > 0) {
+            throw createError({
+                statusCode: 409,
+                message: `This genre is used by ${inUse} ${inUse === 1 ? 'book' : 'books'} and cannot be deleted.`
+            })
+        }
+
         try {
             const deleted = await genreRepository.delete(id)
             if (!deleted) {

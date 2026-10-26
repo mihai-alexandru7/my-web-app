@@ -12,6 +12,8 @@ import type { CreateBookInput, PublisherBookListQuery, UpdateBookInput } from '#
 
 const unique = <T>(values: T[]) => [...new Set(values)]
 
+const normalizeNames = (names: string[]) => names.map((name) => name.trim().toLowerCase()).sort().join('\u0000')
+
 function rethrowDuplicateIsbn(error: unknown): never {
     if (isDuplicateEntry(error)) {
         throw createError({ statusCode: 409, message: 'A book with this ISBN already exists.' })
@@ -85,6 +87,7 @@ export const publisherBookService = {
         await assertReferencesExist(input, getDatabase())
 
         const stored: string[] = []
+        let bookId: number
         try {
             const filePath = await storeUpload('book', files.book.data)
             stored.push(filePath)
@@ -97,7 +100,7 @@ export const publisherBookService = {
                 : undefined
             if (samplePath) stored.push(samplePath)
 
-            const bookId = await getDatabase().transaction(async (transaction) => {
+            bookId = await getDatabase().transaction(async (transaction) => {
                 const id = await publisherBookRepository.insert(
                     {
                         publisherId,
@@ -118,12 +121,13 @@ export const publisherBookService = {
                 await publisherBookRepository.replaceCategories(id, unique(input.categoryIds), transaction)
                 return id
             })
-
-            return await this.getDetail(publisherId, bookId)
         } catch (error) {
             await removeStoredFiles(stored)
             return rethrowDuplicateIsbn(error)
         }
+
+        // Outside the try block on purpose: the book exists now, so its files must never be removed here.
+        return this.getDetail(publisherId, bookId)
     },
 
     async update(publisherId: number, id: number, input: UpdateBookInput, files?: BookUploadFiles) {
@@ -179,7 +183,17 @@ export const publisherBookService = {
                     if (current.samplePath) toDeleteOld.push(current.samplePath)
                 }
 
-                if (current.status === 'rejected') {
+                // A rejected book is resubmitted by editing it. An approved book goes back to review
+                // when what the administrator approved changes (files, title, description, authors);
+                // price, ISBN, language, year, genres and categories can change without a new review.
+                const contentChanged =
+                    Boolean(newFilePaths.filePath || newFilePaths.coverPath || newFilePaths.samplePath) ||
+                    (input.title !== undefined && input.title !== current.title) ||
+                    (input.description !== undefined && (input.description ?? null) !== (current.description ?? null)) ||
+                    (input.authors !== undefined &&
+                        normalizeNames(input.authors) !== normalizeNames(await publisherBookRepository.findAuthorNames(id, transaction)))
+
+                if (current.status === 'rejected' || (current.status === 'approved' && contentChanged)) {
                     Object.assign(columns, { status: 'pending', rejectionReason: null, reviewedBy: null, reviewedAt: null })
                 }
                 await publisherBookRepository.update(id, columns, transaction)

@@ -3,7 +3,7 @@ import { categoryService } from '#server/services/categoryService'
 
 export default defineEventHandler(async (event) => {
     await requireRole(event, 'administrator')
-    const { id } = await getValidatedRouterParams(event, idParamSchema.parse)
+    const { id } = validatedParams(event, idParamSchema)
     await categoryService.remove(id)
     return { ok: true }
 })

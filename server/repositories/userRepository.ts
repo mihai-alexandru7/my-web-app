@@ -100,6 +100,8 @@ export const userRepository = {
         data: UpdateUserData,
         executor: Executor = getDatabase()
     ): Promise<boolean> {
+        if (Object.keys(data).length === 0) return true
+
         const [result] = await executor
             .update(users)
             .set(data)

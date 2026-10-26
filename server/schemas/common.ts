@@ -30,8 +30,14 @@ export const emptyToUndefined = (val: unknown) =>
 export const emptyToNull = (val: unknown) =>
     typeof val === 'string' && val.trim() === '' ? null : val
 
+const dropEmptyStrings = (items: unknown[]) => items.filter((item) => item !== '')
+
+/** Multipart forms cannot send an empty array, so a single empty string stands for "no items". */
 export const toArray = (val: unknown) =>
-    val === undefined ? [] : Array.isArray(val) ? val : [val]
+    val === undefined ? [] : dropEmptyStrings(Array.isArray(val) ? val : [val])
+
+export const toOptionalArray = (val: unknown) =>
+    val === undefined ? undefined : dropEmptyStrings(Array.isArray(val) ? val : [val])
 
 export const atLeastOneField = <T extends z.ZodRawShape>(schema: z.ZodObject<T>) =>
     schema.partial().refine(

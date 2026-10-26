@@ -3,7 +3,7 @@ import { genreService } from '#server/services/genreService'
 
 export default defineEventHandler(async (event) => {
     await requireRole(event, 'administrator')
-    const { id } = await getValidatedRouterParams(event, idParamSchema.parse)
-    const body = await readValidatedBody(event, genreSchema.parse)
+    const { id } = validatedParams(event, idParamSchema)
+    const body = await validatedBody(event, genreSchema)
     return { genre: await genreService.update(id, body.name) }
 })

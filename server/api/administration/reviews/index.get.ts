@@ -3,6 +3,6 @@ import { reviewManagementService } from '#server/services/reviewManagementServic
 
 export default defineEventHandler(async (event) => {
     await requireRole(event, 'administrator')
-    const { page, pageSize, ...filter } = await getValidatedQuery(event, reviewListQuerySchema.parse)
+    const { page, pageSize, ...filter } = validatedQuery(event, reviewListQuerySchema)
     return reviewManagementService.list(filter, page, pageSize)
 })

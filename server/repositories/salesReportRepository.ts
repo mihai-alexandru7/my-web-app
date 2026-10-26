@@ -1,4 +1,4 @@
-import { and, asc, count, countDistinct, desc, eq, gte, lt, sql } from 'drizzle-orm'
+import { and, asc, count, countDistinct, desc, eq, gte, lte, sql } from 'drizzle-orm'
 import { getDatabase } from '#server/utils/database'
 import type { Executor } from '#server/utils/database'
 import { books, orderItems, orders } from '#server/database/schema'
@@ -6,15 +6,31 @@ import { books, orderItems, orders } from '#server/database/schema'
 export type SalesFilter = {
     publisherId: number
     bookId?: number
-    from?: Date
-    to?: Date
+    from?: Date | string
+    to?: Date | string
+}
+
+function parseWindowDates(filter: SalesFilter) {
+    let fromDate: Date | undefined
+    let toDate: Date | undefined
+
+    if (filter.from) {
+        fromDate = filter.from instanceof Date ? filter.from : new Date(`${filter.from}T00:00:00.000Z`)
+    }
+    if (filter.to) {
+        // Asigură includerea întregii zile de final
+        toDate = filter.to instanceof Date ? filter.to : new Date(`${filter.to}T23:59:59.999Z`)
+    }
+
+    return { fromDate, toDate }
 }
 
 function paidInWindow(filter: SalesFilter) {
+    const { fromDate, toDate } = parseWindowDates(filter)
     return and(
         eq(orders.status, 'paid'),
-        filter.from ? gte(orders.createdAt, filter.from) : undefined,
-        filter.to ? lt(orders.createdAt, filter.to) : undefined
+        fromDate ? gte(orders.createdAt, fromDate) : undefined,
+        toDate ? lte(orders.createdAt, toDate) : undefined
     )
 }
 
